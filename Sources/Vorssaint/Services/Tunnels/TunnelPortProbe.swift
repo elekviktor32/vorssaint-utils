@@ -28,6 +28,10 @@ enum TunnelPortProbe {
             guard !finished else { return }
             finished = true
             connection.cancel()
+            // This probe reruns every few seconds for the app's lifetime, so an
+            // uncleared handler here (connection -> closure -> self) leaks a
+            // connection object on every call instead of just once.
+            connection.stateUpdateHandler = nil
             continuation.resume(returning: isOpen)
         }
     }
