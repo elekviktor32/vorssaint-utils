@@ -114,6 +114,8 @@ enum SelfTest {
             failures.append("menu bar glyph representations")
         }
 
+        failures.append(contentsOf: TunnelSelfTest.failures())
+
         for warning in warnings {
             print("SELFTEST WARNING: \(warning)")
         }
