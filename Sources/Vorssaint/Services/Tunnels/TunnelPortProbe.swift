@@ -8,6 +8,30 @@ import Network
 /// honest way to tell a working forward from a live ssh process that is
 /// carrying nothing.
 enum TunnelPortProbe {
+    /// Owns the "already resumed?" flag behind a lock. The state handler and
+    /// the timeout race from different threads; a continuation resumed
+    /// twice is a crash, not a warning, so the guard is not optional.
+    private final class ResumeGuard: @unchecked Sendable {
+        private let lock = NSLock()
+        private var finished = false
+        private let connection: NWConnection
+        private let continuation: CheckedContinuation<Bool, Never>
+
+        init(connection: NWConnection, continuation: CheckedContinuation<Bool, Never>) {
+            self.connection = connection
+            self.continuation = continuation
+        }
+
+        func finish(_ isOpen: Bool) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !finished else { return }
+            finished = true
+            connection.cancel()
+            continuation.resume(returning: isOpen)
+        }
+    }
+
     static func isOpen(port: Int, timeout: TimeInterval = 2) async -> Bool {
         await withCheckedContinuation { continuation in
             guard port > 0, port <= 65535,
@@ -16,27 +40,16 @@ enum TunnelPortProbe {
                 return
             }
             let connection = NWConnection(host: "127.0.0.1", port: endpoint, using: .tcp)
-            let lock = NSLock()
-            var finished = false
-            // The state handler can fire after cancel(), and a continuation
-            // resumed twice is a crash, not a warning.
-            func finish(_ isOpen: Bool) {
-                lock.lock()
-                defer { lock.unlock() }
-                guard !finished else { return }
-                finished = true
-                connection.cancel()
-                continuation.resume(returning: isOpen)
-            }
+            let resumeGuard = ResumeGuard(connection: connection, continuation: continuation)
             connection.stateUpdateHandler = { state in
                 switch state {
-                case .ready: finish(true)
-                case .failed, .waiting: finish(false)
+                case .ready: resumeGuard.finish(true)
+                case .failed, .waiting: resumeGuard.finish(false)
                 default: break
                 }
             }
             connection.start(queue: .global())
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { finish(false) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { resumeGuard.finish(false) }
         }
     }
 }
