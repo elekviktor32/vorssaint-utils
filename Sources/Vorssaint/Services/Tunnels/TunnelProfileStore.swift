@@ -53,13 +53,17 @@ enum TunnelProfileStore {
             .appendingPathComponent("TunnelBar/config.json")
     }
 
-    /// One-shot import of the standalone TunnelBar app's config. The marker is
-    /// set whether or not anything was found, so a profile list the user
-    /// deliberately emptied is never refilled on the next launch.
+    /// One-shot import of the standalone TunnelBar app's config. The marker
+    /// is set only once the outcome is settled — after a successful import,
+    /// or immediately on a path where there is nothing to import — never
+    /// before, so a process that dies mid-import leaves the marker unset and
+    /// gets a clean retry on the next launch instead of losing the import
+    /// with no way to recover it. Once set, a profile list the user
+    /// deliberately emptied is never refilled.
     static func migrateIfNeeded(defaults: UserDefaults = .standard,
                                 legacyURL: URL = legacyConfigURL()) {
         guard !defaults.bool(forKey: DefaultsKey.tunnelProfilesMigrated) else { return }
-        defaults.set(true, forKey: DefaultsKey.tunnelProfilesMigrated)
+        defer { defaults.set(true, forKey: DefaultsKey.tunnelProfilesMigrated) }
         guard defaults.data(forKey: DefaultsKey.tunnelProfiles) == nil,
               let data = try? Data(contentsOf: legacyURL),
               let legacy = try? JSONDecoder().decode(LegacyConfig.self, from: data),

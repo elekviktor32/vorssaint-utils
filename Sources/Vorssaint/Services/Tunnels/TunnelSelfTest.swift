@@ -14,6 +14,7 @@ enum TunnelSelfTest {
         failures.append(contentsOf: aggregateFailures())
         failures.append(contentsOf: sshArgumentFailures())
         failures.append(contentsOf: profileStoreFailures())
+        failures.append(contentsOf: migrationFailures())
         return failures
     }
 
@@ -140,6 +141,97 @@ enum TunnelSelfTest {
             || !TunnelProfileStore.isValidPort(3306) {
             failures.append("tunnel port validation failed")
         }
+        return failures
+    }
+
+    /// Encodes to the same wrapped-object shape as the standalone TunnelBar
+    /// app's config.json (an "environments" array), using the real model
+    /// types so the fixture tracks their Codable behaviour instead of a
+    /// hand-written string.
+    private struct LegacyConfigFixture: Encodable {
+        let environments: [TunnelProfile]
+    }
+
+    private static func migrationFailures() -> [String] {
+        var failures: [String] = []
+
+        let legacyProfiles = [
+            TunnelProfile(id: "dev", name: "DEV", sshUser: "u", sshHost: "h",
+                          forwards: [TunnelPortForward(label: "MariaDB", localPort: 3306,
+                                                       remoteHost: "db", remotePort: 3306)]),
+        ]
+        guard let legacyData = try? JSONEncoder().encode(LegacyConfigFixture(environments: legacyProfiles)) else {
+            return ["tunnel migration: could not encode the legacy fixture"]
+        }
+
+        // Every check gets its own throwaway defaults suite and temp file so
+        // none of them can see another's leftovers, and both are swept
+        // afterward regardless of outcome.
+        func withStore(_ body: (UserDefaults, URL) -> Void) {
+            let suiteName = "com.vorssaint.selftest.tunnelmigration.\(UUID().uuidString)"
+            guard let defaults = UserDefaults(suiteName: suiteName) else {
+                failures.append("tunnel migration: could not create a throwaway UserDefaults suite")
+                return
+            }
+            let legacyURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("tunnelbar-selftest-\(UUID().uuidString).json")
+            defer {
+                defaults.removePersistentDomain(forName: suiteName)
+                try? FileManager.default.removeItem(at: legacyURL)
+            }
+            body(defaults, legacyURL)
+        }
+
+        // A legacy file in the standalone app's shape imports its profiles.
+        withStore { defaults, legacyURL in
+            try? legacyData.write(to: legacyURL)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            if TunnelProfileStore.load(defaults: defaults) != legacyProfiles {
+                failures.append("tunnel migration did not import the legacy profiles")
+            }
+            if !defaults.bool(forKey: DefaultsKey.tunnelProfilesMigrated) {
+                failures.append("tunnel migration did not set the marker after a successful import")
+            }
+        }
+
+        // A second run must not import again, nor overwrite what the user
+        // has done to the list since the first run.
+        withStore { defaults, legacyURL in
+            try? legacyData.write(to: legacyURL)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            TunnelProfileStore.save([], defaults: defaults)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            if !TunnelProfileStore.load(defaults: defaults).isEmpty {
+                failures.append("tunnel migration ran a second time and overwrote the current list")
+            }
+        }
+
+        // A deliberately emptied list (a stored empty-array blob, marker not
+        // yet set) must not be refilled from the legacy file.
+        withStore { defaults, legacyURL in
+            try? legacyData.write(to: legacyURL)
+            TunnelProfileStore.save([], defaults: defaults)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            if !TunnelProfileStore.load(defaults: defaults).isEmpty {
+                failures.append("tunnel migration refilled a deliberately emptied list")
+            }
+            if !defaults.bool(forKey: DefaultsKey.tunnelProfilesMigrated) {
+                failures.append("tunnel migration did not set the marker over an already-emptied list")
+            }
+        }
+
+        // No legacy file present is handled without error, and still sets
+        // the marker so this does not get retried forever.
+        withStore { defaults, legacyURL in
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            if !defaults.bool(forKey: DefaultsKey.tunnelProfilesMigrated) {
+                failures.append("tunnel migration did not set the marker with no legacy file present")
+            }
+            if !TunnelProfileStore.load(defaults: defaults).isEmpty {
+                failures.append("tunnel migration produced profiles with no legacy file present")
+            }
+        }
+
         return failures
     }
 }
