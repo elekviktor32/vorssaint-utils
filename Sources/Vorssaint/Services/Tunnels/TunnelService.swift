@@ -30,9 +30,13 @@ final class TunnelService: ObservableObject {
     private static let idleProbeInterval: UInt64 = 60_000_000_000
 
     private var processes: [String: Process] = [:]
+    /// Held only so the stderr handler stays reachable from every teardown
+    /// path. The closure keeps the read source alive, not the process.
+    private var stderrPipes: [String: Pipe] = [:]
     private var lastStderrLine: [String: String] = [:]
     private var manualDisconnects: Set<String> = []
     private var backoffs: [String: TunnelBackoff] = [:]
+    private var connectTasks: [String: Task<Void, Never>] = [:]
     private var reconnectTasks: [String: Task<Void, Never>] = [:]
     private var healthTask: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
@@ -44,6 +48,9 @@ final class TunnelService: ObservableObject {
     private var desiredActive: Set<String> = []
     /// Dropped without being asked to; the reconnect notice is owed to these.
     private var droppedUnexpectedly: Set<String> = []
+    /// Drops a notice actually went out for. Notifications can be turned on
+    /// mid-outage, and "it is back" without a preceding drop notice is noise.
+    private var dropNoticePosted: Set<String> = []
     /// Panel appearances outstanding. A count, not a flag, so two visible
     /// copies cannot cancel each other out.
     private var panelViewers = 0
@@ -80,11 +87,18 @@ final class TunnelService: ObservableObject {
         startHealthLoop()
     }
 
-    /// Full teardown: every tunnel closed, every watcher released. What the
-    /// user connected is forgotten too, so a reinstall does not silently
-    /// reopen connections they last saw closed.
+    /// Full teardown: every tunnel closed, every task cancelled, every
+    /// watcher and read source released, and every field back to what a fresh
+    /// instance holds. What the user connected is forgotten too, so a
+    /// reinstall does not silently reopen connections they last saw closed.
+    /// Leaving anything behind survives the uninstall: a stale `isSleeping`
+    /// alone poisons every termination decision after a reinstall.
     private func stop() {
         disconnectAll()
+        for task in connectTasks.values { task.cancel() }
+        connectTasks = [:]
+        for task in reconnectTasks.values { task.cancel() }
+        reconnectTasks = [:]
         healthTask?.cancel()
         healthTask = nil
         pathMonitor?.cancel()
@@ -92,8 +106,19 @@ final class TunnelService: ObservableObject {
         let center = NSWorkspace.shared.notificationCenter
         for observer in observers { center.removeObserver(observer) }
         observers = []
+        // Teardown can precede EOF, and the handler outlives both the child
+        // and this dictionary unless it is cleared here.
+        for profileID in Array(stderrPipes.keys) { releaseStderr(profileID) }
+        processes = [:]
+        manualDisconnects = []
+        lastStderrLine = [:]
+        backoffs = [:]
         desiredActive = []
         droppedUnexpectedly = []
+        dropNoticePosted = []
+        suspendedForSleep = []
+        isSleeping = false
+        networkSatisfied = true
         portOpen = [:]
         states = [:]
         panelViewers = 0
@@ -138,16 +163,27 @@ final class TunnelService: ObservableObject {
         desiredActive.insert(profileID)
         states[profileID] = .connecting
         restartHealthLoop()
-        Task { [weak self] in
+        connectTasks[profileID]?.cancel()
+        connectTasks[profileID] = Task { [weak self] in
+            guard let self else { return }
             // A port someone else already holds makes ssh exit immediately,
             // with a message that reads like our failure. Say what it is
             // instead of spawning into it.
-            for forward in profile.forwards
-            where await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1) {
-                self?.states[profileID] = .error("Port \(forward.localPort) is already in use")
+            for forward in profile.forwards {
+                // A second per forward is long enough for an uninstall to land
+                // mid-probe; without these checks the task spawns ssh into
+                // state that stop() has already torn down.
+                guard !Task.isCancelled else { return }
+                guard await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1) else { continue }
+                self.states[profileID] = .error("Port \(forward.localPort) is already in use")
+                // Still wanting it would let a regained network respawn into
+                // the very port this refused to spawn into.
+                self.desiredActive.remove(profileID)
+                self.restartHealthLoop()
                 return
             }
-            self?.spawn(profile)
+            guard !Task.isCancelled else { return }
+            self.spawn(profile)
         }
     }
 
@@ -155,6 +191,9 @@ final class TunnelService: ObservableObject {
         manualDisconnects.insert(profileID)
         desiredActive.remove(profileID)
         droppedUnexpectedly.remove(profileID)
+        dropNoticePosted.remove(profileID)
+        connectTasks[profileID]?.cancel()
+        connectTasks[profileID] = nil
         reconnectTasks[profileID]?.cancel()
         reconnectTasks[profileID] = nil
         backoffs[profileID] = nil
@@ -173,6 +212,12 @@ final class TunnelService: ObservableObject {
     // MARK: Process
 
     private func spawn(_ profile: TunnelProfile) {
+        // The last gate before a child process exists: a probe or a reconnect
+        // that was in flight during an uninstall must not leave one behind.
+        guard isInstalled else { return }
+        // A tunnel that dies without saying anything must not be reported with
+        // the previous failure's message.
+        lastStderrLine[profile.id] = nil
         states[profile.id] = .connecting
         let process = Process()
         process.executableURL = URL(fileURLWithPath: TunnelSSHCommand.executablePath)
@@ -180,9 +225,17 @@ final class TunnelService: ObservableObject {
 
         let stderr = Pipe()
         process.standardError = stderr
+        stderrPipes[profile.id] = stderr
         stderr.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            // Empty is EOF, and the read end stays readable at EOF forever:
+            // left installed, the handler respins on empty reads for the life
+            // of the app.
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            guard let text = String(data: data, encoding: .utf8) else { return }
             // ssh prefixes its post-quantum advisory with "**"; it is noise,
             // and it would otherwise become the reported failure reason.
             let lines = text.split(separator: "\n").map(String.init)
@@ -198,12 +251,28 @@ final class TunnelService: ObservableObject {
             try process.run()
             processes[profile.id] = process
         } catch {
+            releaseStderr(profile.id)
             states[profile.id] = .error("ssh failed to start: \(error.localizedDescription)")
+            // Nothing is connecting any more; without this the five-second
+            // cadence keeps probing with no tunnel to watch.
+            restartHealthLoop()
         }
+    }
+
+    /// Clearing the handler is what releases the dispatch read source and the
+    /// descriptor with it. Dropping the process is not enough: the source
+    /// holds the read end open and keeps firing after the child is gone.
+    private func releaseStderr(_ profileID: String) {
+        guard let pipe = stderrPipes.removeValue(forKey: profileID) else { return }
+        pipe.fileHandleForReading.readabilityHandler = nil
     }
 
     private func handleTermination(_ profile: TunnelProfile, exitStatus: Int32) {
         processes[profile.id] = nil
+        releaseStderr(profile.id)
+        // A child outlives the teardown that killed it. Nothing it reports may
+        // rebuild the state stop() has just cleared, least of all a reconnect.
+        guard isInstalled else { return }
         var backoff = backoffs[profile.id] ?? TunnelBackoff()
         let decision = TunnelTerminationDecision.decide(
             manual: manualDisconnects.contains(profile.id),
@@ -234,9 +303,13 @@ final class TunnelService: ObservableObject {
         restartHealthLoop()
     }
 
-    /// One notice per outage, not one per backoff attempt.
+    /// One notice per outage, not one per backoff attempt. The outage is
+    /// recorded either way; only the notice depends on the setting, so a drop
+    /// that went unannounced cannot produce a lone recovery notice later.
     private func notifyDropOnce(_ profile: TunnelProfile, reason: String) {
-        guard droppedUnexpectedly.insert(profile.id).inserted, notifies else { return }
+        let isNewOutage = droppedUnexpectedly.insert(profile.id).inserted
+        guard isNewOutage, notifies else { return }
+        dropNoticePosted.insert(profile.id)
         Notifier.post(title: "\(profile.name) tunnel dropped", body: reason)
     }
 
@@ -349,15 +422,23 @@ final class TunnelService: ObservableObject {
             var allOpen = !profile.forwards.isEmpty
             var anyOpen = false
             for forward in profile.forwards {
+                // A superseded pass has to stop here: restartHealthLoop only
+                // cancels the task, and a traversal suspended in the probe
+                // would otherwise keep opening sockets for the whole sweep.
+                guard !Task.isCancelled else { return }
                 let open = await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1.5)
                 portOpen[forward.localPort] = open
                 if open { anyOpen = true } else { allOpen = false }
             }
+            // These probes were taken before the cancellation; acting on them
+            // now would flip a profile that has since been disconnected.
+            guard !Task.isCancelled else { return }
             switch states[profile.id] {
             case .connecting where processes[profile.id] != nil && allOpen:
                 states[profile.id] = .connected
                 backoffs[profile.id] = nil
-                if droppedUnexpectedly.remove(profile.id) != nil, notifies {
+                droppedUnexpectedly.remove(profile.id)
+                if dropNoticePosted.remove(profile.id) != nil, notifies {
                     Notifier.post(title: "\(profile.name) tunnel is back",
                                   body: "Every port is reachable again.")
                 }
