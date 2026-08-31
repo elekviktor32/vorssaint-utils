@@ -621,6 +621,13 @@ enum DefaultsKey {
     static let simulateUpdate = "simulateUpdate"
     static let simulateBetaUI = "simulateBetaUI"
 
+    // Tunnel feature: SSH forwarding profiles and settings.
+    static let tunnelProfiles = "tunnelProfiles"               // [TunnelProfile] as JSON Data
+    static let tunnelAutoReconnect = "tunnelAutoReconnect"
+    static let tunnelNotify = "tunnelNotify"
+    static let tunnelProfilesMigrated = "tunnelProfilesMigrated" // one-shot TunnelBar.app import
+    static let panelShowTunnels = "panelShowTunnels"
+
     /// Features hub availability layer, one key per AppFeature raw value.
     /// Registered true: unavailable features vanish from every surface and
     /// hold no resources, without ever touching their own enable keys.

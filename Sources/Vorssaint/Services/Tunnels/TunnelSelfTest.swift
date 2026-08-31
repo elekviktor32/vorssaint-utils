@@ -13,6 +13,7 @@ enum TunnelSelfTest {
         failures.append(contentsOf: terminationFailures())
         failures.append(contentsOf: aggregateFailures())
         failures.append(contentsOf: sshArgumentFailures())
+        failures.append(contentsOf: profileStoreFailures())
         return failures
     }
 
@@ -104,6 +105,40 @@ enum TunnelSelfTest {
         }
         if arguments.last != "user@relay.example" {
             failures.append("tunnel ssh destination is \(arguments.last ?? "nil")")
+        }
+        return failures
+    }
+
+    private static func profileStoreFailures() -> [String] {
+        var failures: [String] = []
+        let profiles = [
+            TunnelProfile(id: "dev", name: "DEV", sshUser: "u", sshHost: "h",
+                          forwards: [TunnelPortForward(label: "MariaDB", localPort: 3306,
+                                                       remoteHost: "db", remotePort: 3306)]),
+            TunnelProfile(id: "uat", name: "UAT", sshUser: "u", sshHost: "h",
+                          forwards: [TunnelPortForward(label: "MariaDB", localPort: 3306,
+                                                       remoteHost: "db2", remotePort: 3306)]),
+        ]
+        guard let encoded = TunnelProfileStore.encode(profiles) else {
+            return ["tunnel profile encoding returned nil"]
+        }
+        if TunnelProfileStore.decode(encoded) != profiles {
+            failures.append("tunnel profile round trip changed the profiles")
+        }
+        // A corrupt or absent blob must read as "no profiles", never crash.
+        if !TunnelProfileStore.decode(nil).isEmpty {
+            failures.append("tunnel profile decode of nil was not empty")
+        }
+        if !TunnelProfileStore.decode(Data([0x00, 0x01])).isEmpty {
+            failures.append("tunnel profile decode of garbage was not empty")
+        }
+        // Two profiles cannot both own local port 3306; only one ssh can bind it.
+        if TunnelProfileStore.duplicateLocalPorts(in: profiles) != [3306] {
+            failures.append("tunnel duplicate port detection failed")
+        }
+        if TunnelProfileStore.isValidPort(0) || TunnelProfileStore.isValidPort(65536)
+            || !TunnelProfileStore.isValidPort(3306) {
+            failures.append("tunnel port validation failed")
         }
         return failures
     }
