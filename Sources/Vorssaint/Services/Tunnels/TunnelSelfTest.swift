@@ -12,6 +12,7 @@ enum TunnelSelfTest {
         failures.append(contentsOf: backoffFailures())
         failures.append(contentsOf: terminationFailures())
         failures.append(contentsOf: aggregateFailures())
+        failures.append(contentsOf: sshArgumentFailures())
         return failures
     }
 
@@ -73,6 +74,36 @@ enum TunnelSelfTest {
         for scenario in cases where tunnelAggregate(scenario.states) != scenario.expected {
             failures.append("tunnel aggregate \(scenario.label): "
                             + "\(tunnelAggregate(scenario.states)), expected \(scenario.expected)")
+        }
+        return failures
+    }
+
+    private static func sshArgumentFailures() -> [String] {
+        let profile = TunnelProfile(
+            id: "check", name: "Check", sshUser: "user", sshHost: "relay.example",
+            forwards: [
+                TunnelPortForward(label: "A", localPort: 3306,
+                                  remoteHost: "db.internal", remotePort: 3306),
+                TunnelPortForward(label: "B", localPort: 27018,
+                                  remoteHost: "docs.internal", remotePort: 27017),
+            ])
+        let arguments = TunnelSSHCommand.arguments(for: profile)
+        var failures: [String] = []
+        // ExitOnForwardFailure is what turns a busy local port into a process
+        // exit we can report, instead of a connection that silently carries
+        // nothing.
+        if !arguments.contains("ExitOnForwardFailure=yes") {
+            failures.append("tunnel ssh arguments miss ExitOnForwardFailure")
+        }
+        if !arguments.contains("-N") {
+            failures.append("tunnel ssh arguments miss -N")
+        }
+        if !arguments.contains("3306:db.internal:3306")
+            || !arguments.contains("27018:docs.internal:27017") {
+            failures.append("tunnel ssh arguments miss a forward: \(arguments)")
+        }
+        if arguments.last != "user@relay.example" {
+            failures.append("tunnel ssh destination is \(arguments.last ?? "nil")")
         }
         return failures
     }
