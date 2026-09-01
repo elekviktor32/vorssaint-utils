@@ -2,11 +2,15 @@
 // Copyright (C) 2026 Vorssaint
 
 import Foundation
+import os.log
 
 /// Profile persistence. The list rides in defaults as JSON, the way the
 /// radial menu stores its items, so it travels with the settings backup and
 /// needs no file of its own.
 enum TunnelProfileStore {
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "vorssaint",
+                                    category: "tunnels")
+
     static func load(defaults: UserDefaults = .standard) -> [TunnelProfile] {
         decode(defaults.data(forKey: DefaultsKey.tunnelProfiles))
     }
@@ -54,20 +58,27 @@ enum TunnelProfileStore {
     }
 
     /// One-shot import of the standalone TunnelBar app's config. The marker
-    /// is set only once the outcome is settled — after a successful import,
-    /// or immediately on a path where there is nothing to import — never
-    /// before, so a process that dies mid-import leaves the marker unset and
-    /// gets a clean retry on the next launch instead of losing the import
-    /// with no way to recover it. Once set, a profile list the user
-    /// deliberately emptied is never refilled.
+    /// is set on every path through this function once the top guard passes
+    /// — after a successful import, when there is nothing to import, and
+    /// also when a legacy file was found but could not be decoded — so a
+    /// process that dies before reaching the `defer` (crash, force-quit)
+    /// leaves the marker unset and gets a clean retry on the next launch,
+    /// while any settled outcome, success or failure, is not retried. Once
+    /// set, a profile list the user deliberately emptied is never refilled.
     static func migrateIfNeeded(defaults: UserDefaults = .standard,
                                 legacyURL: URL = legacyConfigURL()) {
         guard !defaults.bool(forKey: DefaultsKey.tunnelProfilesMigrated) else { return }
         defer { defaults.set(true, forKey: DefaultsKey.tunnelProfilesMigrated) }
         guard defaults.data(forKey: DefaultsKey.tunnelProfiles) == nil,
-              let data = try? Data(contentsOf: legacyURL),
-              let legacy = try? JSONDecoder().decode(LegacyConfig.self, from: data),
-              !legacy.environments.isEmpty else { return }
+              let data = try? Data(contentsOf: legacyURL) else { return }
+        guard let legacy = try? JSONDecoder().decode(LegacyConfig.self, from: data) else {
+            // The marker still gets set (see the defer above), which
+            // permanently disables the one-shot import — worth a trace,
+            // since nothing else records that this happened.
+            log.error("tunnel migration: legacy config found but failed to decode; import skipped")
+            return
+        }
+        guard !legacy.environments.isEmpty else { return }
         save(legacy.environments, defaults: defaults)
     }
 

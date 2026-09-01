@@ -206,6 +206,25 @@ enum TunnelSelfTest {
             }
         }
 
+        // The check above is doubly protected: `save([])` leaves a non-nil
+        // (empty) blob behind, so the "has anything ever been stored" guard
+        // alone blocks a reimport there, whether or not the top-of-function
+        // marker guard exists. This isolates that marker guard: it strips
+        // the profiles key back to nil after a successful import — something
+        // the public API never does, since `save` always writes a blob — so
+        // only the marker stands between the still-present legacy file and a
+        // second import.
+        withStore { defaults, legacyURL in
+            try? legacyData.write(to: legacyURL)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            defaults.removeObject(forKey: DefaultsKey.tunnelProfiles)
+            TunnelProfileStore.migrateIfNeeded(defaults: defaults, legacyURL: legacyURL)
+            if !TunnelProfileStore.load(defaults: defaults).isEmpty {
+                failures.append("tunnel migration re-imported after the profiles key was cleared, "
+                                + "so the marker guard alone is not stopping a second import")
+            }
+        }
+
         // A deliberately emptied list (a stored empty-array blob, marker not
         // yet set) must not be refilled from the legacy file.
         withStore { defaults, legacyURL in
