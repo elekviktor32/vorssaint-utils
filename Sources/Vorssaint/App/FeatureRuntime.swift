@@ -258,6 +258,9 @@ final class FeatureRuntime: ObservableObject {
                 FanControlService.shared.syncWithPreferences()
             }
         },
+        // TunnelService is @MainActor; bindings run on the main thread like
+        // every other feature's, so the isolation is already satisfied here.
+        .tunnels: { MainActor.assumeIsolated { TunnelService.shared.syncWithPreferences() } },
     ]
 
     private static func syncMonitor() {

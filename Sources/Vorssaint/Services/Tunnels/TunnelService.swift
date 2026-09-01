@@ -56,7 +56,7 @@ final class TunnelService: ObservableObject {
     private var panelViewers = 0
 
     private var isInstalled: Bool {
-        UserDefaults.standard.bool(forKey: DefaultsKey.featureAvailable("tunnels"))
+        AppFeature.tunnels.isAvailable
     }
 
     private var notifies: Bool {

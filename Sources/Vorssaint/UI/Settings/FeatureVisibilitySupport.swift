@@ -199,6 +199,9 @@ extension AppFeature {
         case .shelf: return FeatureSettingsDestination(.shelf)
         case .urlCleaner: return FeatureSettingsDestination(.urlCleaner)
         case .diskImageInstaller: return FeatureSettingsDestination(.features)
+        // No dedicated settings surface yet: the hub row is the honest
+        // fallback, same as diskImageInstaller above.
+        case .tunnels: return FeatureSettingsDestination(.features)
 
         case .mixer:
             return FeatureSettingsDestination(.general, sectionAnchor: .panelConfiguration)
