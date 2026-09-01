@@ -3,9 +3,9 @@
 
 import Foundation
 
-/// Strings for the SSH tunnels feature. Same contract as the other
-/// FeatureStrings structs: memberwise init with labeled arguments in
-/// declaration order, one static per language, all in this file.
+/// Strings for the SSH tunnels feature. Unlike the other FeatureStrings
+/// structs, every language resolves to one English static — see `tunnels(_:)`
+/// below for why.
 struct TunnelFeatureStrings {
     let pageTitle: String
     let hubDescription: String

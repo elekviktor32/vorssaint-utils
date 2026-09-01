@@ -345,6 +345,8 @@ extension AppFeature {
             case (.monitorPower, .notifications):
                 return boolFor(DefaultsKey.monitorAlertBattery)
                     || boolFor(DefaultsKey.monitorAlertBatteryTemperature)
+            case (.tunnels, .notifications):
+                return boolFor(DefaultsKey.tunnelNotify)
             case (.appUpdates, .notifications):
                 return AppUpdatesSupport.CheckFrequency
                     .sanitized(stringFor(DefaultsKey.appUpdatesCheckFrequency)) != .off

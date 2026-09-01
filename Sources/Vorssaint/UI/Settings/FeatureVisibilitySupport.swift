@@ -199,9 +199,6 @@ extension AppFeature {
         case .shelf: return FeatureSettingsDestination(.shelf)
         case .urlCleaner: return FeatureSettingsDestination(.urlCleaner)
         case .diskImageInstaller: return FeatureSettingsDestination(.features)
-        // No dedicated settings surface yet: the hub row is the honest
-        // fallback, same as diskImageInstaller above.
-        case .tunnels: return FeatureSettingsDestination(.features)
 
         case .mixer:
             return FeatureSettingsDestination(.general, sectionAnchor: .panelConfiguration)
@@ -247,6 +244,9 @@ extension AppFeature {
         case .commandBar: return FeatureSettingsDestination(.commandBar)
         case .screenRecorder:
             return FeatureSettingsDestination(.screenshot, sectionAnchor: .screenRecorder)
+        // No dedicated settings surface yet: the hub row is the honest
+        // fallback.
+        case .tunnels: return FeatureSettingsDestination(.features)
 
         case .monitorCPU, .monitorGPU, .monitorMemory, .monitorNetwork, .monitorDisk, .monitorPower:
             return FeatureSettingsDestination(.monitor)

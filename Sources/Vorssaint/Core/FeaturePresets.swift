@@ -109,7 +109,7 @@ extension AppFeature {
                 ? .idle : .mouse
         case .clipboardHistory, .urlCleaner, .extraBrightness,
              .monitorCPU, .monitorGPU, .monitorMemory,
-             .monitorNetwork, .monitorDisk, .monitorPower:
+             .monitorNetwork, .monitorDisk, .monitorPower, .tunnels:
             return .periodic
         case .mixer:
             return UserDefaults.standard.bool(forKey: DefaultsKey.preciseVolumeRollerEnabled)
@@ -118,7 +118,7 @@ extension AppFeature {
              .musicBlock, .bluetoothSleep, .keepAwake, .brightness, .quickLauncher, .quickToggles, .colorPicker,
              .screenOCR, .cleaningMode, .mediaTools, .cleaner, .uninstaller, .homebrew, .screenshot,
              .cameraPreview, .scratchpad, .commandBar, .screenRecorder, .fanControl,
-             .diskImageInstaller, .killProcess, .tunnels:
+             .diskImageInstaller, .killProcess:
             return .idle
         case .appUpdates:
             // The list is on demand; only a background schedule keeps a timer.
