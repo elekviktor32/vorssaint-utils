@@ -71,9 +71,11 @@ struct TunnelSection: View {
                 }
                 .font(.system(size: 10.5, weight: .medium))
                 .buttonStyle(.borderless)
-                // An outside process owns these ports; terminating our own
-                // (absent) ssh would do nothing and offering it would lie.
-                .disabled(state == .external)
+                // .external reads Connect, never Disconnect, so nothing here
+                // offers to kill an ssh we do not own. Left enabled: greying
+                // it made someone else's listener a dead end with no per-row
+                // explanation, while pressing it runs the precheck, which
+                // names the port that is taken.
             }
             HStack(spacing: 4) {
                 ForEach(profile.forwards) { forward in

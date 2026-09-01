@@ -95,7 +95,10 @@ final class TunnelService: ObservableObject {
     /// does not silently reopen connections they last saw closed. Leaving any
     /// of the rest behind survives the uninstall: a stale `isSleeping` alone
     /// poisons every termination decision after a reinstall.
-    private func stop() {
+    ///
+    /// Also the quit path — `applicationWillTerminate` calls this, because an
+    /// `ssh -N` child is not killed by this process going away.
+    func stop() {
         disconnectAll()
         for task in connectTasks.values { task.cancel() }
         connectTasks = [:]
@@ -143,6 +146,22 @@ final class TunnelService: ObservableObject {
         for profile in profiles where states[profile.id] == nil {
             states[profile.id] = .disconnected
         }
+        // A running ssh carries the arguments it was launched with, so an edit
+        // to the host, the user or a forward leaves the panel reporting a
+        // tunnel that no longer matches what is stored — and the superseded
+        // local port stays bound, invisibly, for the next profile claiming it
+        // to collide with. Comparing the launched arguments is what keeps a
+        // rename free: neither the profile name nor a forward's label is part
+        // of them. Restarting instead would be worse — Settings persists on
+        // every keystroke, so it would respawn ssh per character typed.
+        for profile in profiles {
+            guard let launched = processes[profile.id]?.arguments,
+                  launched != TunnelSSHCommand.arguments(for: profile) else { continue }
+            disconnect(profile.id)
+            // terminate() only signals; without this the row keeps claiming
+            // the old tunnel until the exit lands.
+            states[profile.id] = .disconnected
+        }
         // disconnect() above reprices too, but while states[id] still reads
         // .connected, so a deletion of the last active profile leaves the
         // loop pinned to the fast cadence. Repricing again here, after the
@@ -174,6 +193,15 @@ final class TunnelService: ObservableObject {
         guard isInstalled,
               let profile = profiles.first(where: { $0.id == profileID }),
               processes[profileID] == nil else { return }
+        // ssh -N with nothing to forward stays up carrying nothing: no port
+        // can ever answer, so the profile would sit in .connecting for the
+        // life of the process and hold the probe loop at its fast cadence
+        // with nothing to probe. Refusing says what to do instead.
+        guard !profile.forwards.isEmpty else {
+            states[profileID] = .error("Add a port forward before connecting")
+            restartHealthLoop()
+            return
+        }
         manualDisconnects.remove(profileID)
         desiredActive.insert(profileID)
         states[profileID] = .connecting
@@ -241,6 +269,12 @@ final class TunnelService: ObservableObject {
         // a second spawn would overwrite them, orphaning the first child and
         // leaving its stderr handler unreachable from every release path.
         guard processes[profile.id] == nil else { return }
+        // Every caller holds a captured profile across a suspension — a port
+        // probe, a backoff, the two seconds after a wake — and Settings can
+        // rewrite it in that window. Launch what is stored now, so a process
+        // never starts life already carrying superseded configuration. It
+        // subsumes the deleted-profile check the reconnect paths make too.
+        guard let profile = profiles.first(where: { $0.id == profile.id }) else { return }
         // A tunnel that dies without saying anything must not be reported with
         // the previous failure's message.
         lastStderrLine[profile.id] = nil
@@ -261,12 +295,7 @@ final class TunnelService: ObservableObject {
                 handle.readabilityHandler = nil
                 return
             }
-            guard let text = String(data: data, encoding: .utf8) else { return }
-            // ssh prefixes its post-quantum advisory with "**"; it is noise,
-            // and it would otherwise become the reported failure reason.
-            let lines = text.split(separator: "\n").map(String.init)
-                .filter { !$0.isEmpty && !$0.hasPrefix("**") }
-            guard let last = lines.last else { return }
+            guard let last = Self.failureLine(in: data) else { return }
             Task { @MainActor in self?.lastStderrLine[profile.id] = last }
         }
         process.terminationHandler = { [weak self] process in
@@ -285,6 +314,19 @@ final class TunnelService: ObservableObject {
         }
     }
 
+    /// The line worth reporting out of a chunk of ssh's stderr, or nil if
+    /// there is none. ssh prefixes its post-quantum advisory with "**"; it is
+    /// noise, and it would otherwise become the reported failure reason.
+    /// Shared so the live handler and the drain below cannot disagree about
+    /// what counts as a reason. `nonisolated`: the handler runs off the main
+    /// actor.
+    nonisolated private static func failureLine(in data: Data) -> String? {
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        return text.split(separator: "\n").map(String.init)
+            .filter { !$0.isEmpty && !$0.hasPrefix("**") }
+            .last
+    }
+
     /// Clearing the handler is what releases the dispatch read source and the
     /// descriptor with it. Dropping the process is not enough: the source
     /// holds the read end open and keeps firing after the child is gone.
@@ -293,8 +335,21 @@ final class TunnelService: ObservableObject {
         pipe.fileHandleForReading.readabilityHandler = nil
     }
 
+    /// Whatever ssh wrote but the handler has not delivered yet. The reason
+    /// and the exit are two hops onto the main actor from two different
+    /// sources, and the exit routinely wins: without this the most common
+    /// first failure of all, `Permission denied (publickey)` from an
+    /// unloaded agent, is reported as a bare status number. The child is gone
+    /// by now, so the write end is closed and this read cannot block.
+    private func drainStderr(_ profileID: String) {
+        guard let pipe = stderrPipes[profileID] else { return }
+        guard let last = Self.failureLine(in: pipe.fileHandleForReading.availableData) else { return }
+        lastStderrLine[profileID] = last
+    }
+
     private func handleTermination(_ profile: TunnelProfile, exitStatus: Int32) {
         processes[profile.id] = nil
+        drainStderr(profile.id)
         releaseStderr(profile.id)
         // A child outlives the teardown that killed it, and a deleted
         // profile's child outlives its profile. Nothing either reports may
@@ -454,8 +509,9 @@ final class TunnelService: ObservableObject {
 
     private func healthCheck() async {
         for profile in profiles {
+            // A profile with no forwards has nothing that can be open, so it
+            // is neither ours nor anyone else's tunnel.
             var allOpen = !profile.forwards.isEmpty
-            var anyOpen = false
             for forward in profile.forwards {
                 // A superseded pass has to stop here: restartHealthLoop only
                 // cancels the task, and a traversal suspended in the probe
@@ -467,7 +523,7 @@ final class TunnelService: ObservableObject {
                 // fresh sweep has already published for this port.
                 guard !Task.isCancelled else { return }
                 portOpen[forward.localPort] = open
-                if open { anyOpen = true } else { allOpen = false }
+                if !open { allOpen = false }
             }
             // These probes were taken before the cancellation; acting on them
             // now would flip a profile that has since been disconnected.
@@ -481,9 +537,13 @@ final class TunnelService: ObservableObject {
                     Notifier.post(title: "\(profile.name) tunnel is back",
                                   body: "Every port is reachable again.")
                 }
-            case .disconnected where anyOpen:
+            // Every port, the same as .connected asks for: one unrelated
+            // listener on one of the ports (a local mongod on 27017) is not
+            // somebody else's copy of this tunnel, and calling it one used to
+            // label the whole profile as theirs.
+            case .disconnected where allOpen:
                 states[profile.id] = .external
-            case .external where !anyOpen:
+            case .external where !allOpen:
                 states[profile.id] = .disconnected
             default:
                 break

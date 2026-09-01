@@ -256,6 +256,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // Puts the system input back if a microphone was chosen here: the
         // app's audio settings must not outlive the app.
         AudioInputDeviceManager.shared.stop()
+        // Not redundant with the process dying: the ssh children are plain
+        // Process children, so they stay in this app's session (see
+        // DetachedProcess) and quitting either orphans one still holding the
+        // local ports — the next launch then reads the profile as .external
+        // and greys its Connect button, with no way out from the UI — or has
+        // the job teardown kill it with no clean close. terminate() signals
+        // synchronously, so there is nothing to wait for. Guarded so quitting
+        // never builds the service for a feature that is not installed.
+        if AppFeature.tunnels.isAvailable {
+            TunnelService.shared.stop()
+        }
         // Flushes any scratchpad edit still inside the save debounce.
         ScratchpadService.shared.suspend()
         // The clipboard history persists through an async pipeline; the last
