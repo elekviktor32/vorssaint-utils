@@ -30,7 +30,7 @@ struct TunnelSettings: View {
                 }
             }
             ForEach($profiles) { $profile in
-                Section(profile.name.isEmpty ? strings.profileName : profile.name) {
+                Section(profile.name.isEmpty ? strings.untitledProfile : profile.name) {
                     TextField(strings.profileName, text: $profile.name)
                     TextField(strings.sshUser, text: $profile.sshUser)
                     TextField(strings.sshHost, text: $profile.sshHost)
@@ -54,7 +54,6 @@ struct TunnelSettings: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(strings.pageTitle)
         .onAppear { profiles = TunnelProfileStore.load() }
         .onChange(of: profiles) { _, updated in persist(updated) }
     }
@@ -71,7 +70,7 @@ struct TunnelSettings: View {
                     TextField(strings.remotePort, value: $forward.remotePort, format: .number)
                         .frame(width: 90)
                 }
-                Button(strings.removeProfile, role: .destructive) {
+                Button(strings.removeForward, role: .destructive) {
                     profile.wrappedValue.forwards.removeAll { $0.id == forward.id }
                 }
                 .font(.caption)
@@ -79,8 +78,10 @@ struct TunnelSettings: View {
         }
     }
 
-    /// Both problems block a connection rather than a save: a profile half
-    /// typed is a normal state, and refusing to store it would lose the work.
+    /// Advisory only — neither the service nor the ssh command builder
+    /// consults this. A profile half typed is a normal state, and refusing
+    /// to store it would lose the work; an invalid or duplicated port just
+    /// makes ssh fail, or fail to bind, when the tunnel actually connects.
     private var warning: String? {
         let ports = profiles.flatMap { $0.forwards }.flatMap { [$0.localPort, $0.remotePort] }
         if ports.contains(where: { !TunnelProfileStore.isValidPort($0) }) {

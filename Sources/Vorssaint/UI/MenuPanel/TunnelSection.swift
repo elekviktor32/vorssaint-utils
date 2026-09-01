@@ -16,9 +16,11 @@ struct TunnelSection: View {
     var body: some View {
         PanelSection(.tunnels, title: strings.pageTitle, collapsible: collapsible) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(summary)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
+                if !service.profiles.isEmpty {
+                    Text(summary)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                }
                 if service.profiles.isEmpty {
                     Text(strings.noProfiles)
                         .font(.system(size: 10.5))

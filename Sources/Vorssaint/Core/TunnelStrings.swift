@@ -22,6 +22,7 @@ struct TunnelFeatureStrings {
     let noProfiles: String
     let addProfile: String
     let removeProfile: String
+    let untitledProfile: String
     let profileName: String
     let sshUser: String
     let sshHost: String
@@ -31,6 +32,7 @@ struct TunnelFeatureStrings {
     let localPort: String
     let remoteHost: String
     let remotePort: String
+    let removeForward: String
     let invalidPort: String
     let duplicatePort: String
 
@@ -70,6 +72,7 @@ extension TunnelFeatureStrings {
         noProfiles: "No tunnel profiles yet. Add one to get started.",
         addProfile: "Add profile",
         removeProfile: "Remove profile",
+        untitledProfile: "Untitled profile",
         profileName: "Name",
         sshUser: "SSH user",
         sshHost: "SSH host",
@@ -79,6 +82,7 @@ extension TunnelFeatureStrings {
         localPort: "Local port",
         remoteHost: "Remote host",
         remotePort: "Remote port",
+        removeForward: "Remove forward",
         invalidPort: "Ports must be between 1 and 65535.",
         duplicatePort: "Two forwards claim the same local port; only one can connect."
     )

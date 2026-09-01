@@ -1037,6 +1037,10 @@ enum Defaults {
         DefaultsKey.panelShowControls: true,
         DefaultsKey.panelShowToggles: true,
         DefaultsKey.panelShowTunnels: true,
+        // Matches TunnelSettings' @AppStorage default; TunnelService and
+        // FeatureCatalog read this key as a plain bool(forKey:), which is
+        // false when unregistered.
+        DefaultsKey.tunnelNotify: true,
         DefaultsKey.panelToggleDarkMode: true,
         DefaultsKey.panelToggleKeyboardLight: true,
         DefaultsKey.panelToggleMicMute: true,
