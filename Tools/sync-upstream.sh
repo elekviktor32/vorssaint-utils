@@ -90,8 +90,10 @@ if git merge-tree --write-tree HEAD upstream/main >/dev/null 2>&1; then
     CLEAN_MERGE=1
 else
     echo "⚠ Trial merge reports conflicts in:"
+    # First line is the tree oid; the file list ends at the blank line, after
+    # which git appends its own "Auto-merging/CONFLICT" chatter.
     git merge-tree --write-tree --name-only HEAD upstream/main 2>/dev/null \
-        | tail -n +2 | sed 's|^Sources/Vorssaint/|  |'
+        | tail -n +2 | awk 'NF == 0 { exit } { print }' | sed 's|^Sources/Vorssaint/|  |'
     echo
     echo "  Resolving these is almost always 'keep both sides': this fork's line"
     echo "  is a '.tunnels' case or a dictionary entry, and upstream's is about a"
