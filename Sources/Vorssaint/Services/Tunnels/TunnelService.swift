@@ -136,10 +136,19 @@ final class TunnelService: ObservableObject {
             // keeping a respawn away from them; respawnIfNeeded checks the
             // profile itself now, so it no longer has to grow forever.
             manualDisconnects.remove(id)
+            // Otherwise a create/delete cycle leaks one entry per profile for
+            // the life of the process.
+            lastStderrLine[id] = nil
         }
         for profile in profiles where states[profile.id] == nil {
             states[profile.id] = .disconnected
         }
+        // disconnect() above reprices too, but while states[id] still reads
+        // .connected, so a deletion of the last active profile leaves the
+        // loop pinned to the fast cadence. Repricing again here, after the
+        // deletions have actually cleared states, is what settles it — do
+        // not read this as a duplicate of disconnect()'s call and drop it.
+        restartHealthLoop()
     }
 
     func panelDidAppear() {
@@ -180,7 +189,12 @@ final class TunnelService: ObservableObject {
                 // mid-probe; without these checks the task spawns ssh into
                 // state that stop() has already torn down.
                 guard !Task.isCancelled else { return }
-                guard await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1) else { continue }
+                let portInUse = await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1)
+                // Symmetric with the health sweep: sleep or stop() can cancel
+                // while the await above is suspended, and a write after that
+                // would resurrect state that teardown already cleared.
+                guard !Task.isCancelled else { return }
+                guard portInUse else { continue }
                 self.states[profileID] = .error("Port \(forward.localPort) is already in use")
                 // Still wanting it would let a regained network respawn into
                 // the very port this refused to spawn into.
