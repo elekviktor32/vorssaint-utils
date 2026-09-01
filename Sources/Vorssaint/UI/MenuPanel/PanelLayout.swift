@@ -130,6 +130,11 @@ enum PanelLayout {
                 // New in 3.1.13: saved orders predate it, so it slots in at
                 // its canonical place instead of the end.
                 result.insert(id, at: keepAwakeIndex + 1)
+            } else if id == .tunnels, let keepAwakeIndex = result.firstIndex(of: .keepAwake) {
+                // Same reason as brightness above, and it has to run after it:
+                // brightness inserts at the same index, so whichever is handled
+                // last ends up nearer the top. Tunnels belongs there.
+                result.insert(id, at: keepAwakeIndex + 1)
             } else {
                 result.append(id)
             }
