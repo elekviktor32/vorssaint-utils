@@ -88,11 +88,13 @@ final class TunnelService: ObservableObject {
     }
 
     /// Full teardown: every tunnel closed, every task cancelled, every
-    /// watcher and read source released, and every field back to what a fresh
-    /// instance holds. What the user connected is forgotten too, so a
-    /// reinstall does not silently reopen connections they last saw closed.
-    /// Leaving anything behind survives the uninstall: a stale `isSleeping`
-    /// alone poisons every termination decision after a reinstall.
+    /// watcher and read source released, and every field that governs running
+    /// state cleared. `profiles` and `autoReconnect` stay as they are —
+    /// they mirror preferences and `syncWithPreferences()` reloads them on the
+    /// way back in. What the user connected is forgotten too, so a reinstall
+    /// does not silently reopen connections they last saw closed. Leaving any
+    /// of the rest behind survives the uninstall: a stale `isSleeping` alone
+    /// poisons every termination decision after a reinstall.
     private func stop() {
         disconnectAll()
         for task in connectTasks.values { task.cancel() }
@@ -130,6 +132,10 @@ final class TunnelService: ObservableObject {
         for id in states.keys where !known.contains(id) {
             disconnect(id)
             states[id] = nil
+            // The set only had to hold deleted ids while it was the sole thing
+            // keeping a respawn away from them; respawnIfNeeded checks the
+            // profile itself now, so it no longer has to grow forever.
+            manualDisconnects.remove(id)
         }
         for profile in profiles where states[profile.id] == nil {
             states[profile.id] = .disconnected
@@ -215,6 +221,12 @@ final class TunnelService: ObservableObject {
         // The last gate before a child process exists: a probe or a reconnect
         // that was in flight during an uninstall must not leave one behind.
         guard isInstalled else { return }
+        // Not a duplicate of respawnIfNeeded's check: the callers test this
+        // before awaiting the port probe, and a network regain can spawn while
+        // that await is suspended. Both registries are keyed by profile id, so
+        // a second spawn would overwrite them, orphaning the first child and
+        // leaving its stderr handler unreachable from every release path.
+        guard processes[profile.id] == nil else { return }
         // A tunnel that dies without saying anything must not be reported with
         // the previous failure's message.
         lastStderrLine[profile.id] = nil
@@ -270,9 +282,11 @@ final class TunnelService: ObservableObject {
     private func handleTermination(_ profile: TunnelProfile, exitStatus: Int32) {
         processes[profile.id] = nil
         releaseStderr(profile.id)
-        // A child outlives the teardown that killed it. Nothing it reports may
-        // rebuild the state stop() has just cleared, least of all a reconnect.
-        guard isInstalled else { return }
+        // A child outlives the teardown that killed it, and a deleted
+        // profile's child outlives its profile. Nothing either reports may
+        // rebuild state that stop() or reloadProfiles has just cleared, least
+        // of all a reconnect.
+        guard isInstalled, profiles.contains(where: { $0.id == profile.id }) else { return }
         var backoff = backoffs[profile.id] ?? TunnelBackoff()
         let decision = TunnelTerminationDecision.decide(
             manual: manualDisconnects.contains(profile.id),
@@ -314,7 +328,10 @@ final class TunnelService: ObservableObject {
     }
 
     private func respawnIfNeeded(_ profile: TunnelProfile) {
-        guard isInstalled, processes[profile.id] == nil,
+        // The captured profile outlives the store it came from: a delete in
+        // Settings can land while a reconnect or a wake is still pending.
+        guard isInstalled, profiles.contains(where: { $0.id == profile.id }),
+              processes[profile.id] == nil,
               !manualDisconnects.contains(profile.id) else { return }
         spawn(profile)
     }
@@ -348,6 +365,10 @@ final class TunnelService: ObservableObject {
         suspendedForSleep = Set(states.filter { $0.value == .connected || $0.value == .connecting }.keys)
         for task in reconnectTasks.values { task.cancel() }
         reconnectTasks.removeAll()
+        // A probe still in flight would resume mid-sleep and spawn ssh instead
+        // of being restored with everything else on wake.
+        for task in connectTasks.values { task.cancel() }
+        connectTasks.removeAll()
         // Close cleanly rather than letting sleep freeze a half-dead socket
         // that the far end still believes in.
         for profileID in suspendedForSleep { processes[profileID]?.terminate() }
@@ -427,6 +448,10 @@ final class TunnelService: ObservableObject {
                 // would otherwise keep opening sockets for the whole sweep.
                 guard !Task.isCancelled else { return }
                 let open = await TunnelPortProbe.isOpen(port: forward.localPort, timeout: 1.5)
+                // The reading is up to a second and a half old by now: a
+                // superseded sweep landing it would overwrite the value the
+                // fresh sweep has already published for this port.
+                guard !Task.isCancelled else { return }
                 portOpen[forward.localPort] = open
                 if open { anyOpen = true } else { allOpen = false }
             }
