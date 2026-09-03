@@ -1585,7 +1585,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         return true
     }
 
-    func showUpdateHighlights(includeSupportIntro: Bool = false) {
+    func showUpdateHighlights() {
         closePopover()
         if let window = updateHighlightsWindow {
             NSApp.activate(ignoringOtherApps: true)
@@ -1597,13 +1597,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 guard let self else { return }
                 self.markUpdateHighlightsSeen()
                 self.updateHighlightsWindow?.close()
-                DispatchQueue.main.async { [weak self] in
-                    if includeSupportIntro {
-                        self?.showSupportUpdateIntro()
-                    } else {
-                        _ = self?.showSupportUpdateIntroIfNeeded()
-                    }
-                }
             }
         ))
         host.sizingOptions = .preferredContentSize
@@ -1706,7 +1699,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         ))
         host.sizingOptions = .preferredContentSize
         let window = NSWindow(contentViewController: host)
-        window.title = L10n.shared.s.discordIntroTitle
+        window.title = L10n.shared.s.supportIntroTitle
         window.styleMask = [.titled, .fullSizeContentView]
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.titlebarAppearsTransparent = true

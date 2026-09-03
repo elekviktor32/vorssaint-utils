@@ -654,7 +654,7 @@ struct Strings {
     let shelfTooltipLinkPlural: String       // + count
     let shelfActionOpen: String
     let shelfActionOpenWith: String
-    let shelfActionAirDrop: String
+    let shelfActionShare: String
 
     // MARK: Panel — per-app breakdown
     let breakdownMeasuring: String
@@ -968,9 +968,6 @@ struct Strings {
     let supportIntroDoneButton: String
     let discordIntroTitle: String
     let discordIntroMessage: String
-    let discordIntroBenefitHelp: String
-    let discordIntroBenefitFeedback: String
-    let discordIntroBenefitPreviews: String
     let discordIntroJoinButton: String
     let communityIntroTitle: String
     let communityIntroMessage: String
@@ -1072,11 +1069,17 @@ struct Strings {
     let qrResultOpen: String
     let highlightsTitle: String
     let highlightsTitleClipboardRedesign: String
+    let highlightsTitleWindowLayout: String
+    let highlightsTitleQuitProtection: String
+    let highlightsTitleRecorderBlur: String
     let highlightsCaptionDockPreview: String
     let highlightsCaptionScreenshot: String
     let highlightsCaptionSnippetLibrary: String
     let highlightsCaptionCapturePalette: String
     let highlightsCaptionClipboardRedesign: String
+    let highlightsCaptionWindowLayout: String
+    let highlightsCaptionQuitProtection: String
+    let highlightsCaptionRecorderBlur: String
     let highlightsConfigure: String
     let highlightsTry: String
     let highlightsSeeAll: String
@@ -1666,7 +1669,7 @@ extension Strings {
         shelfTooltipLinkPlural: "%d links",
         shelfActionOpen: "Abrir",
         shelfActionOpenWith: "Abrir com",
-        shelfActionAirDrop: "Compartilhar por AirDrop",
+        shelfActionShare: "Compartilhar",
 
         breakdownMeasuring: "Medindo…",
 
@@ -1965,9 +1968,6 @@ extension Strings {
         supportIntroDoneButton: "Concluir",
         discordIntroTitle: "A comunidade do Vorssaint no Discord está começando",
         discordIntroMessage: "A comunidade do Vorssaint é nova e ainda está em desenvolvimento. Entre desde o começo para conhecer outros usuários e ajudar a construir um espaço acolhedor em torno do app.",
-        discordIntroBenefitHelp: "Tire dúvidas e compartilhe fluxos de trabalho",
-        discordIntroBenefitFeedback: "Relate bugs, peça melhorias e ajude a decidir o que vem depois",
-        discordIntroBenefitPreviews: "Acompanhe o desenvolvimento, prévias e novidades de versões",
         discordIntroJoinButton: "Entrar na comunidade no Discord",
         communityIntroTitle: "Vem ver antes de todo mundo",
         communityIntroMessage: "Quem já me seguia no X viu várias novidades desta atualização antes de todo mundo. Lá eu posto prévias do que vem depois e mostro como funciona, para você já saber o básico antes mesmo da atualização sair. Segue lá e veja o que vem depois!",
@@ -2063,11 +2063,17 @@ extension Strings {
         qrResultOpen: "Abrir link",
         highlightsTitle: "Novidades desta versão",
         highlightsTitleClipboardRedesign: "Novo visual da área de transferência",
+        highlightsTitleWindowLayout: "Organização de janelas",
+        highlightsTitleQuitProtection: "Proteção de ⌘Q e ⌘W",
+        highlightsTitleRecorderBlur: "Desfoque no gravador de tela",
         highlightsCaptionDockPreview: "O Dock Preview agora funciona com a ampliação do Dock ligada",
         highlightsCaptionScreenshot: "A captura de tela ganhou uma lupa de pixels e leitura de QR codes",
         highlightsCaptionSnippetLibrary: "Um menu de snippets com busca digita qualquer snippet direto no cursor",
         highlightsCaptionCapturePalette: "Um único atalho agora abre uma paleta flutuante para capturas, gravações, texto na tela e cores com ajustes por perto.",
         highlightsCaptionClipboardRedesign: "O histórico agora abre como uma paleta compacta, com linhas limpas e prévia sob demanda para ler ou editar o item completo.",
+        highlightsCaptionWindowLayout: "Use o anel direcional com atalho e ponteiro para posicionar janelas, ou arraste até as bordas da tela para encaixar com margens personalizadas.",
+        highlightsCaptionQuitProtection: "Evite fechar aplicativos ou janelas por engano exigindo segurar a tecla, tocar duas vezes ou usar um atalho extra, ajustável por aplicativo.",
+        highlightsCaptionRecorderBlur: "Oculte dados confidenciais, senhas e informações privadas em qualquer trecho do seu vídeo gravado antes de salvar ou exportar.",
         highlightsConfigure: "Configurar",
         highlightsTry: "Experimentar",
         highlightsSeeAll: "Ver todas as mudanças",
@@ -2658,7 +2664,7 @@ extension Strings {
         shelfTooltipLinkPlural: "%d links",
         shelfActionOpen: "Open",
         shelfActionOpenWith: "Open With",
-        shelfActionAirDrop: "Share with AirDrop",
+        shelfActionShare: "Share",
 
         breakdownMeasuring: "Measuring…",
 
@@ -2957,9 +2963,6 @@ extension Strings {
         supportIntroDoneButton: "Done",
         discordIntroTitle: "The Vorssaint Discord community is just getting started",
         discordIntroMessage: "The Vorssaint community is new and still being built. Join early to meet other users and help build a welcoming space around the app.",
-        discordIntroBenefitHelp: "Get help and share workflows",
-        discordIntroBenefitFeedback: "Report bugs, request improvements and shape what comes next",
-        discordIntroBenefitPreviews: "See work in progress, early previews and release news",
         discordIntroJoinButton: "Join the Discord community",
         communityIntroTitle: "See it before everyone else",
         communityIntroMessage: "People who already followed me on X saw several changes in this update before anyone else. I post previews of what is coming and show how it works, so you already know the basics before the update ships. Follow along and see what comes next!",
@@ -3055,11 +3058,17 @@ extension Strings {
         qrResultOpen: "Open link",
         highlightsTitle: "New in this update",
         highlightsTitleClipboardRedesign: "Redesigned clipboard",
+        highlightsTitleWindowLayout: "Window Layout",
+        highlightsTitleQuitProtection: "Quit and close protection",
+        highlightsTitleRecorderBlur: "Recording privacy blur",
         highlightsCaptionDockPreview: "Dock Preview now works with Dock magnification turned on",
         highlightsCaptionScreenshot: "The screenshot tool gained a pixel loupe and QR code reading",
         highlightsCaptionSnippetLibrary: "A searchable snippet menu types any snippet right at your cursor",
         highlightsCaptionCapturePalette: "One shortcut now opens a floating palette for screenshots, recordings, screen text and colors with nearby controls.",
         highlightsCaptionClipboardRedesign: "Clipboard history now opens as a compact palette with uncluttered rows and an on-demand preview for reading or editing the full item.",
+        highlightsCaptionWindowLayout: "Position windows with the directional ring using a shortcut and pointer, or drag to screen edges to snap with custom gaps.",
+        highlightsCaptionQuitProtection: "Avoid quitting apps or closing windows by accident with a hold, a double press or an extra modifier, customizable per app.",
+        highlightsCaptionRecorderBlur: "Hide private details, passwords and sensitive areas anywhere across your recorded video before sharing or exporting.",
         highlightsConfigure: "Set up",
         highlightsTry: "Try it",
         highlightsSeeAll: "See all changes",

@@ -200,6 +200,14 @@ final class QuitProtectionService: ObservableObject {
             return nil
         }
 
+        // Every branch below either needs Command held or belongs to a press
+        // already in flight, and reading which key this is costs an NSEvent
+        // plus a layout lookup on a tap that sees every keystroke on the Mac.
+        // Ordinary typing stops here.
+        guard event.flags.contains(.maskCommand) || hasPressInFlight else {
+            return Unmanaged.passUnretained(event)
+        }
+
         let shortcut = matchingShortcut(for: event)
 
         if let swallowShortcut {
@@ -326,6 +334,13 @@ final class QuitProtectionService: ObservableObject {
     }
 
     private func handleKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // A release only matters to a press this service is holding. Command
+        // cannot be required here the way it is above: the release of Q may
+        // well arrive after Command was let go.
+        guard hasPressInFlight else {
+            return Unmanaged.passUnretained(event)
+        }
+
         let shortcut = matchingShortcut(for: event)
 
         if let swallow = swallowShortcut, shortcut == swallow {
@@ -497,6 +512,11 @@ final class QuitProtectionService: ObservableObject {
         }
     }
 
+    /// A press this service took over: either waiting for the confirmation
+    /// that lets it through, or waiting for the release that closes it. Both
+    /// make the keys that follow this service's business.
+    private var hasPressInFlight: Bool { pending != nil || swallowShortcut != nil }
+
     private func isSynthetic(_ event: CGEvent) -> Bool {
         event.getIntegerValueField(.eventSourceUserData) == Self.syntheticMarker
     }
@@ -520,12 +540,15 @@ final class QuitProtectionService: ObservableObject {
         return app.terminate()
     }
 
+    /// Answers whether the press was posted, so a failed copy never leaves the
+    /// key up travelling alone.
     private func postSyntheticKeyDown(from event: CGEvent,
-                                      removing modifier: QuitProtectionExtraModifier? = nil) {
-        let copy = event.copy()!
+                                      removing modifier: QuitProtectionExtraModifier? = nil) -> Bool {
+        guard let copy = event.copy() else { return false }
         if let modifier { copy.flags = flags(for: event, removing: modifier) }
         copy.setIntegerValueField(.eventSourceUserData, value: Self.syntheticMarker)
         copy.post(tap: .cghidEventTap)
+        return true
     }
 
     private func postSyntheticKeyUp(from event: CGEvent,
@@ -541,7 +564,7 @@ final class QuitProtectionService: ObservableObject {
 
     private func postSyntheticPress(from event: CGEvent,
                                     removing modifier: QuitProtectionExtraModifier? = nil) {
-        postSyntheticKeyDown(from: event, removing: modifier)
+        guard postSyntheticKeyDown(from: event, removing: modifier) else { return }
         postSyntheticKeyUp(from: event, removing: modifier)
     }
 
