@@ -14,6 +14,7 @@
 #   ./Tools/sync-upstream.sh            merge, build, selftest
 #   ./Tools/sync-upstream.sh --check    report what is waiting, change nothing
 #   ./Tools/sync-upstream.sh --install  ... and install + launch when green
+#   ./Tools/sync-upstream.sh --verify   run only the build gate, merge nothing
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -36,10 +37,12 @@ TOUCHPOINTS=(
 
 CHECK_ONLY=0
 INSTALL=0
+VERIFY_ONLY=0
 for arg in "$@"; do
     case "$arg" in
         --check) CHECK_ONLY=1 ;;
         --install) INSTALL=1 ;;
+        --verify) VERIFY_ONLY=1 ;;
         *) echo "Unknown option: $arg" >&2; exit 2 ;;
     esac
 done
@@ -56,6 +59,71 @@ if [[ -n "$(git status --porcelain)" ]]; then
     echo "Working tree is not clean. Commit or stash first:" >&2
     git status --short >&2
     exit 1
+fi
+
+# $1: commit to roll back to on failure, empty when there is nothing to undo.
+build_gate() {
+    local rollback="$1"
+    local undo=""
+    [[ -n "$rollback" ]] && undo="Undo the merge with:  git reset --hard $rollback"
+
+    echo
+    echo "▸ Building… (a few minutes; the whole target is recompiled)"
+    local log
+    log=$(mktemp -t vorssaint-sync)
+    if ! ./build.sh >"$log" 2>&1; then
+        echo
+        echo "✗ Build FAILED." >&2
+        grep -E "error:" "$log" | head -20 >&2 || tail -20 "$log" >&2
+        echo >&2
+        echo "If upstream added a case to AppFeature, PanelSectionID or SettingsPage," >&2
+        echo "the errors above name every switch missing a '.tunnels' branch — add them" >&2
+        echo "and re-run with --verify." >&2
+        [[ -n "$undo" ]] && echo "$undo" >&2
+        rm -f "$log"
+        return 1
+    fi
+
+    local warnings
+    warnings=$(grep -c "warning:" "$log" || true)
+    if [[ "$warnings" != "0" ]]; then
+        echo
+        echo "✗ Build produced $warnings warning(s); this codebase builds clean." >&2
+        grep "warning:" "$log" | head -10 >&2
+        [[ -n "$undo" ]] && { echo >&2; echo "$undo" >&2; }
+        rm -f "$log"
+        return 1
+    fi
+    rm -f "$log"
+
+    if ! ./build/Vorssaint --selftest; then
+        echo
+        echo "✗ Selftest FAILED." >&2
+        [[ -n "$undo" ]] && echo "$undo" >&2
+        return 1
+    fi
+    return 0
+}
+
+install_step() {
+    if [[ "$INSTALL" == "1" ]]; then
+        echo "▸ Installing…"
+        ./build.sh --install
+        open /Applications/Vorssaint.app
+        echo "✓ Installed and launched."
+    else
+        echo "  Install with:  ./build.sh --install && open /Applications/Vorssaint.app"
+    fi
+}
+
+# Re-running the build gate on its own: what you want after resolving a merge
+# conflict by hand, when there is nothing left to fetch.
+if [[ "$VERIFY_ONLY" == "1" ]]; then
+    build_gate "" || exit 1
+    echo
+    echo "✓ 0 warnings, selftest green."
+    install_step
+    exit 0
 fi
 
 echo "▸ Fetching upstream…"
@@ -117,54 +185,15 @@ if ! git merge --no-edit upstream/main; then
     echo
     echo "Merge stopped with conflicts. Resolve them, then:" >&2
     echo "  git add -A && git commit" >&2
-    echo "  ./Tools/sync-upstream.sh --install    # re-run the build gate" >&2
+    echo "  ./Tools/sync-upstream.sh --verify --install   # re-run the build gate" >&2
     echo "Or give up on this round with:" >&2
     echo "  git merge --abort" >&2
     exit 1
 fi
 
-echo
-echo "▸ Building… (a few minutes; the whole target is recompiled)"
-BUILD_LOG=$(mktemp -t vorssaint-sync)
-trap 'rm -f "$BUILD_LOG"' EXIT
-if ! ./build.sh >"$BUILD_LOG" 2>&1; then
-    echo
-    echo "✗ Build FAILED after the merge." >&2
-    grep -E "error:" "$BUILD_LOG" | head -20 >&2 || tail -20 "$BUILD_LOG" >&2
-    echo >&2
-    echo "If upstream added a case to AppFeature, PanelSectionID or SettingsPage," >&2
-    echo "the errors above name every switch missing a '.tunnels' branch — add them" >&2
-    echo "and re-run. To undo the merge instead:" >&2
-    echo "  git reset --hard $BEFORE" >&2
-    exit 1
-fi
-
-WARNINGS=$(grep -c "warning:" "$BUILD_LOG" || true)
-if [[ "$WARNINGS" != "0" ]]; then
-    echo
-    echo "✗ Build produced $WARNINGS warning(s); this codebase builds clean." >&2
-    grep "warning:" "$BUILD_LOG" | head -10 >&2
-    echo >&2
-    echo "Undo the merge with:  git reset --hard $BEFORE" >&2
-    exit 1
-fi
-
-if ! ./build/Vorssaint --selftest; then
-    echo
-    echo "✗ Selftest FAILED after the merge." >&2
-    echo "Undo the merge with:  git reset --hard $BEFORE" >&2
-    exit 1
-fi
+build_gate "$BEFORE" || exit 1
 
 echo
 echo "✓ Merged $BEHIND commit(s), 0 warnings, selftest green."
-
-if [[ "$INSTALL" == "1" ]]; then
-    echo "▸ Installing…"
-    ./build.sh --install
-    open /Applications/Vorssaint.app
-    echo "✓ Installed and launched."
-else
-    echo "  Install with:  ./build.sh --install && open /Applications/Vorssaint.app"
-fi
+install_step
 echo "  Push the merge with:  git push"
