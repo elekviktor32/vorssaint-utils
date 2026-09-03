@@ -125,6 +125,8 @@ extension Strings {
         advancedUninstallButton: "Vorssaint を完全にアンインストール",
         advancedUninstallConfirmTitle: "Vorssaint をアンインストールしますか？",
         advancedUninstallConfirmBody: "Vorssaint はアクセス権を消去し、環境設定を削除し、ゴミ箱に移動してから終了します。この操作はアプリからは取り消せませんが、ゴミ箱を空にするまではゴミ箱に残ります。",
+        advancedUninstallFailedTitle: "アンインストールを中止しました",
+        advancedUninstallFailedBody: "Vorssaint が変更したシステム設定（スリープ、ファンの回転数、マウス加速）を元に戻せませんでした。何も削除していません。もう一度試して、パスワードの入力を求められたら許可してください。",
 
         launchAtLogin: "ログイン時に起動",
         languageLabel: "言語",
@@ -207,6 +209,8 @@ extension Strings {
         switcherShortcutHintApps: "アプリ",
         switcherShortcutHintWindows: "ウインドウ",
         switcherWindowShortcutCaption: "最前面のアプリのウインドウ用スイッチャーを開きます。アプリスイッチャー表示中は、選択中のアプリのウインドウを順に切り替えます。",
+        switcherTakeOverSystemShortcuts: "macOS の ⌘Tab と ⌘` を置き換える",
+        switcherTakeOverSystemShortcutsCaption: "Vorssaint のスイッチャーが動作中の間だけ、対応する macOS のアプリとウインドウのショートカットを無効にします。実行中のすべてのアプリに切り替えられます。",
         switcherAppearanceDelay: "表示までの待ち時間",
         switcherAppearanceDelayCaption: "スイッチャーが表示されるまでショートカットを押し続ける時間です。",
         switcherMergeTabs: "アプリごとに1つにまとめて表示",
@@ -983,6 +987,8 @@ extension Strings {
         switcherScreenPlacementCaption: "複数の画面を接続しているとき、スイッチャーをどの画面に表示するかを選びます。",
         smoothScrollResponseLabel: "反応",
         mouseAccelerationName: "マウス加速を無効にする",
-        mouseAccelerationCaption: "接続したマウスのポインタ加速を無効にします。オフにするか Vorssaint を終了すると以前の設定に戻ります。"
+        mouseAccelerationCaption: "接続したマウスのポインタ加速を無効にします。オフにするか Vorssaint を終了すると以前の設定に戻ります。",
+        shelfClearOnClose: "閉じるときに項目を消去",
+        shelfClearOnCloseCaption: "閉じるボタンをクリックしたときだけシェルフを空にします。自動的に隠れた場合や折りたたんだ場合は項目を保持します。"
     )
 }

@@ -125,6 +125,8 @@ extension Strings {
         advancedUninstallButton: "完全解除安裝 Vorssaint",
         advancedUninstallConfirmTitle: "解除安裝 Vorssaint？",
         advancedUninstallConfirmBody: "Vorssaint 將清除其權限、移除偏好設定並移到垃圾桶，然後結束。此操作無法從 App 內復原，但在你清倒垃圾桶之前它仍會留在其中。",
+        advancedUninstallFailedTitle: "已停止解除安裝",
+        advancedUninstallFailedBody: "Vorssaint 無法還原它變更過的系統設定：睡眠、風扇轉速或滑鼠加速。沒有移除任何項目。請再試一次，並在出現密碼要求時允許。",
 
         launchAtLogin: "登入時啟動",
         languageLabel: "語言",
@@ -208,6 +210,8 @@ extension Strings {
         switcherShortcutHintApps: "App",
         switcherShortcutHintWindows: "視窗",
         switcherWindowShortcutCaption: "開啟最前應用程式的視窗切換器。應用程式切換器開啟時，在所選應用程式的視窗之間跳轉。",
+        switcherTakeOverSystemShortcuts: "接管 macOS 的 ⌘Tab 和 ⌘`",
+        switcherTakeOverSystemShortcutsCaption: "僅在 Vorssaint 切換器執行時停用對應的 macOS App 與視窗快速鍵，並保留所有執行中 App 的入口。",
         switcherAppearanceDelay: "顯示延遲",
         switcherAppearanceDelayCaption: "按住快速鍵多久後顯示切換器。",
         switcherMergeTabs: "每個 App 僅顯示一項",
@@ -984,6 +988,8 @@ extension Strings {
         switcherScreenPlacementCaption: "連接多個螢幕時，切換器在哪個螢幕開啟。",
         smoothScrollResponseLabel: "反應速度",
         mouseAccelerationName: "關閉滑鼠加速",
-        mouseAccelerationCaption: "移除已連接滑鼠的指標加速。關閉此選項或結束 Vorssaint 後，會還原先前的設定。"
+        mouseAccelerationCaption: "移除已連接滑鼠的指標加速。關閉此選項或結束 Vorssaint 後，會還原先前的設定。",
+        shelfClearOnClose: "關閉時清空",
+        shelfClearOnCloseCaption: "只有點按關閉按鈕時才會清空暫存架。自動隱藏或收合時會保留項目。"
     )
 }

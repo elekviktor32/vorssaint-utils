@@ -125,6 +125,8 @@ extension Strings {
         advancedUninstallButton: "Désinstaller complètement Vorssaint",
         advancedUninstallConfirmTitle: "Désinstaller Vorssaint ?",
         advancedUninstallConfirmBody: "Vorssaint va effacer ses autorisations, supprimer ses préférences et se placer dans la corbeille, puis quitter. L’app ne peut pas annuler cette action, mais elle reste dans la corbeille jusqu’à ce que vous la vidiez.",
+        advancedUninstallFailedTitle: "Désinstallation interrompue",
+        advancedUninstallFailedBody: "Vorssaint n’a pas pu rétablir un réglage système qu’il avait modifié : la veille, la vitesse des ventilateurs ou l’accélération de la souris. Rien n’a été supprimé. Réessayez et autorisez la demande de mot de passe si elle apparaît.",
 
         launchAtLogin: "Ouvrir à l’ouverture de session",
         languageLabel: "Langue",
@@ -207,6 +209,8 @@ extension Strings {
         switcherShortcutHintApps: "Apps",
         switcherShortcutHintWindows: "Fenêtres",
         switcherWindowShortcutCaption: "Ouvre un sélecteur pour les fenêtres de l’app au premier plan. Sélecteur d’apps ouvert, passe d’une fenêtre à l’autre de l’app sélectionnée.",
+        switcherTakeOverSystemShortcuts: "Remplacer ⌘Tab et ⌘` de macOS",
+        switcherTakeOverSystemShortcutsCaption: "Désactive les raccourcis macOS correspondants uniquement lorsque le sélecteur Vorssaint est actif. Toutes les apps ouvertes restent accessibles.",
         switcherAppearanceDelay: "Délai d’affichage",
         switcherAppearanceDelayCaption: "Durée pendant laquelle le raccourci doit rester enfoncé avant l’affichage du sélecteur.",
         switcherMergeTabs: "Afficher une seule entrée par app",
@@ -983,6 +987,8 @@ extension Strings {
         switcherScreenPlacementCaption: "Sur quel écran le sélecteur s'ouvre quand plusieurs sont connectés.",
         smoothScrollResponseLabel: "Réactivité",
         mouseAccelerationName: "Désactiver l’accélération de la souris",
-        mouseAccelerationCaption: "Supprime l’accélération du pointeur pour les souris connectées. Le réglage précédent est restauré à la désactivation ou à la fermeture de Vorssaint."
+        mouseAccelerationCaption: "Supprime l’accélération du pointeur pour les souris connectées. Le réglage précédent est restauré à la désactivation ou à la fermeture de Vorssaint.",
+        shelfClearOnClose: "Vider à la fermeture",
+        shelfClearOnCloseCaption: "Vide l’étagère uniquement lorsque vous cliquez sur le bouton de fermeture. Le masquage automatique et la réduction conservent les éléments."
     )
 }
