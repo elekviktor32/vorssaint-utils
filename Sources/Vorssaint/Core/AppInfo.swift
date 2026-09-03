@@ -25,6 +25,18 @@ enum AppInfo {
         (Bundle.main.bundleIdentifier ?? "").hasSuffix(".dev")
     }
 
+    /// True in this fork. It ships an SSH tunnels feature the official build does
+    /// not, and it deliberately keeps the official bundle id so settings and
+    /// granted permissions carry over — which also means the self-updater treats
+    /// it as the official app.
+    static let isUnofficialFork = true
+
+    /// Whether this build may replace itself from the official release feed.
+    /// It must not here: installing an official release over this fork silently
+    /// deletes the tunnels feature, which is exactly what happened once.
+    /// Upstream comes in through Tools/sync-upstream.sh instead.
+    static var selfUpdatesDisabled: Bool { isDeveloperBuild || isUnofficialFork }
+
     /// True when the current version is a pre-release (e.g. 3.3.4-beta.1 or 3.3.4-rc.1).
     static var isBeta: Bool {
         if isDeveloperBuild && UserDefaults.standard.bool(forKey: DefaultsKey.simulateBetaUI) {

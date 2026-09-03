@@ -65,9 +65,9 @@ final class UpdateService: ObservableObject {
         if AppInfo.isBeta && UserDefaults.standard.object(forKey: DefaultsKey.includeBetaUpdates) == nil {
             UserDefaults.standard.set(true, forKey: DefaultsKey.includeBetaUpdates)
         }
-        // The local dev build never auto-updates, but can simulate the
-        // "update available" UI via the `simulateUpdate` default, for testing.
-        if AppInfo.isDeveloperBuild {
+        // Neither the local dev build nor this fork auto-updates; both can
+        // simulate the "update available" UI via `simulateUpdate`, for testing.
+        if AppInfo.selfUpdatesDisabled {
             if UserDefaults.standard.bool(forKey: DefaultsKey.simulateUpdate) {
                 let simulatedVersion = AppInfo.isBeta ? "9.9.9-beta.1" : "9.9.9"
                 state = .available(version: simulatedVersion)
@@ -100,7 +100,7 @@ final class UpdateService: ObservableObject {
     // MARK: - Check
 
     func check(manual: Bool) {
-        if AppInfo.isDeveloperBuild {
+        if AppInfo.selfUpdatesDisabled {
             // No real update target; reflect the simulation default so the
             // notification UI can be exercised locally.
             if UserDefaults.standard.bool(forKey: DefaultsKey.simulateUpdate) {
@@ -193,7 +193,7 @@ final class UpdateService: ObservableObject {
     /// or the panel opens, so a new release surfaces promptly without hammering the
     /// API. The hourly timer is the floor; this makes it feel immediate.
     func checkIfStale(maxAge: TimeInterval = 15 * 60) {
-        if AppInfo.isDeveloperBuild { return }
+        if AppInfo.selfUpdatesDisabled { return }
         guard autoCheckEnabled else { return }
         switch state {
         case .checking, .downloading, .installing: return
@@ -206,7 +206,7 @@ final class UpdateService: ObservableObject {
     // MARK: - Download & install
 
     func downloadAndInstall() {
-        if AppInfo.isDeveloperBuild { return }  // never replace the local dev build over itself
+        if AppInfo.selfUpdatesDisabled { return }  // never replace this build with the official one
         guard let downloadURL else { return }
         // Pre-flight BEFORE spending the download: a translocated app or one
         // running from a read-only volume (the mounted DMG) can never be
@@ -459,7 +459,7 @@ final class UpdateService: ObservableObject {
         let s = L10n.shared.s
         Notifier.post(title: s.updateNotifyTitle,
                       body: "\(s.updateInstallFailedBody) (\(code))")
-        if !AppInfo.isDeveloperBuild {
+        if !AppInfo.selfUpdatesDisabled {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 self?.check(manual: false)
             }

@@ -542,6 +542,14 @@ struct UpdatesView: View {
 
     var body: some View {
         Section(l10n.s.updatesSection) {
+            // Without this, Check for updates reports "up to date" forever with
+            // no reason given. English only, like this fork's other additions.
+            if AppInfo.isUnofficialFork {
+                SettingsCaptionText("This is a local fork carrying the SSH tunnels feature. "
+                                    + "Self-update is off, because installing an official "
+                                    + "release would remove it. Update with "
+                                    + "Tools/sync-upstream.sh instead.")
+            }
             Toggle(l10n.s.autoCheckToggle, isOn: $autoCheck)
                 .onChange(of: autoCheck) { _, value in
                     UpdateService.shared.autoCheckEnabled = value
