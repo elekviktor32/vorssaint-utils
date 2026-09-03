@@ -87,18 +87,21 @@ fi
 echo
 if git merge-tree --write-tree HEAD upstream/main >/dev/null 2>&1; then
     echo "✓ Trial merge is clean."
-    CLEAN_MERGE=1
 else
     echo "⚠ Trial merge reports conflicts in:"
-    # First line is the tree oid; the file list ends at the blank line, after
-    # which git appends its own "Auto-merging/CONFLICT" chatter.
-    git merge-tree --write-tree --name-only HEAD upstream/main 2>/dev/null \
-        | tail -n +2 | awk 'NF == 0 { exit } { print }' | sed 's|^Sources/Vorssaint/|  |'
+    # merge-tree exits non-zero on conflict, which under `set -e` with pipefail
+    # would kill this script on the very path it exists to report. Capture it
+    # first, so only the formatting runs in the pipeline.
+    #
+    # First line of the output is the tree oid; the file list ends at the blank
+    # line, after which git appends its own "Auto-merging/CONFLICT" chatter.
+    CONFLICTS=$(git merge-tree --write-tree --name-only HEAD upstream/main 2>/dev/null || true)
+    echo "$CONFLICTS" | tail -n +2 | awk 'NF == 0 { exit } { print }' \
+        | sed 's|^Sources/Vorssaint/|  |'
     echo
     echo "  Resolving these is almost always 'keep both sides': this fork's line"
     echo "  is a '.tunnels' case or a dictionary entry, and upstream's is about a"
     echo "  different feature."
-    CLEAN_MERGE=0
 fi
 
 if [[ "$CHECK_ONLY" == "1" ]]; then
