@@ -33,6 +33,8 @@ TOUCHPOINTS=(
     Sources/Vorssaint/UI/Settings/SettingsDirectory.swift
     Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift
     Sources/Vorssaint/Support/SelfTest.swift
+    Sources/Vorssaint/Core/AppInfo.swift
+    Sources/Vorssaint/Services/Update/UpdateService.swift
 )
 
 CHECK_ONLY=0
