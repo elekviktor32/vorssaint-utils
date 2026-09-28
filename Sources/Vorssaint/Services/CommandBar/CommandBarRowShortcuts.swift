@@ -11,9 +11,42 @@ import Foundation
 /// the thing you run weekly does not. Nothing is registered unless the person
 /// asked for it, so an untouched install pays nothing.
 enum CommandBarRowShortcuts {
-    /// Few enough that the keyboard is still the person's, and that the list
-    /// in Settings stays readable.
-    static let limit = 20
+    /// Bound global hotkey registrations while leaving room for a shortcut
+    /// for every letter and for other commands.
+    static let limit = 64
+
+    /// A cold catalog may arrive after the person changed their shortcut.
+    /// Only the latest request, with its original binding still intact, runs.
+    struct PendingAppLaunch {
+        private var pending: (key: String, shortcut: GlobalShortcut)?
+
+        mutating func schedule(_ key: String, in shortcuts: [String: GlobalShortcut]) {
+            pending = shortcuts[key].map { (key, $0) }
+        }
+
+        mutating func cancel() { pending = nil }
+
+        mutating func take(in shortcuts: [String: GlobalShortcut], isAvailable: Bool) -> String? {
+            defer { pending = nil }
+            guard isAvailable, let pending, shortcuts[pending.key] == pending.shortcut else { return nil }
+            return pending.key
+        }
+    }
+
+    enum AssignmentIssue: Equatable {
+        case invalid
+        case occupied(String)
+        case full
+    }
+
+    static func assignmentIssue(_ shortcut: GlobalShortcut, for key: String,
+                                in shortcuts: [String: GlobalShortcut]) -> AssignmentIssue? {
+        guard isUsable(shortcut) else { return .invalid }
+        if let owner = self.key(for: shortcut, in: shortcuts), owner != key {
+            return .occupied(owner)
+        }
+        return hasRoom(for: key, in: shortcuts) ? nil : .full
+    }
 
     static func decode(_ raw: String?) -> [String: GlobalShortcut] {
         guard let raw, let data = raw.data(using: .utf8),

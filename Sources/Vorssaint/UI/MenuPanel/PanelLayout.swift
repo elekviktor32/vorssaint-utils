@@ -11,7 +11,7 @@ protocol PanelOrderItem: RawRepresentable, CaseIterable, Hashable where RawValue
 /// renaming a case would orphan a user's stored layout — keep them stable.
 enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
     case keepAwake, brightness, mixer, system, network, disk, power, fanControl, utilities, controls,
-         toggles, tunnels
+         toggles, wallpaper, tunnels
 
     var id: String { rawValue }
 
@@ -29,6 +29,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .utilities: return s.utilitiesSection
         case .controls: return s.quickControlsSection
         case .toggles: return FeatureStrings.quickToggles(L10n.shared.language).pageTitle
+        case .wallpaper: return FeatureStrings.wallpaper(L10n.shared.language).pageTitle
         case .tunnels: return FeatureStrings.tunnels(L10n.shared.language).pageTitle
         }
     }
@@ -46,6 +47,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .utilities: return "wrench.and.screwdriver.fill"
         case .controls: return "switch.2"
         case .toggles: return "togglepower"
+        case .wallpaper: return "photo.on.rectangle"
         case .tunnels: return "point.3.connected.trianglepath.dotted"
         }
     }
@@ -66,6 +68,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .utilities: return DefaultsKey.panelShowUtilities
         case .controls: return DefaultsKey.panelShowControls
         case .toggles: return DefaultsKey.panelShowToggles
+        case .wallpaper: return DefaultsKey.panelShowWallpaper
         case .tunnels: return DefaultsKey.panelShowTunnels
         }
     }
@@ -81,7 +84,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .keepAwake: return [.keepAwake]
         case .brightness: return [.brightness]
-        case .mixer: return [.mixer]
+        case .mixer: return [.mixer, .audioPriority]
         case .system: return [.monitorCPU, .monitorGPU, .monitorMemory]
         case .network: return [.monitorNetwork]
         case .disk: return [.monitorDisk]
@@ -91,12 +94,13 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
                                  .clipboardHistory,
                                  .windowLayout, .uninstaller, .urlCleaner, .cleaningMode, .screenOCR,
                                  .colorPicker, .screenshot, .screenRecorder,
-                                 .cameraPreview, .scratchpad, .commandBar]
+                                 .cameraPreview, .scratchpad, .commandBar, .portManager]
         case .controls: return [.scrollInverter, .mouseAcceleration, .mouseNavigation, .mouseButtonShortcuts, .switcher,
                                 .finderCutPaste, .autoQuit,
                                 .shelf, .windowMaximizer, .dockPreview, .keyboardDebounce, .dockClick,
-                                .middleClick, .textSnippets, .superKey, .radialMenu, .mouseClickDebounce]
+                                .middleClick, .textSnippets, .superKey, .radialMenu, .mouseClickDebounce, .notch]
         case .toggles: return [.quickToggles, .micMute]
+        case .wallpaper: return [.wallpaper]
         case .tunnels: return [.tunnels]
         }
     }
@@ -166,6 +170,15 @@ enum PanelLayout {
 
     static func setShown(_ shown: Bool, for id: PanelSectionID) {
         defaults.set(shown, forKey: id.visibilityKey)
+    }
+
+    /// Whether the section earns a tab in the panel right now: installed and
+    /// shown, and for brightness also switched on, since that tab is enabled
+    /// from Settings rather than from an empty panel screen. The one rule the
+    /// live panel and its preview in Settings both read.
+    static func isVisibleInPanel(_ id: PanelSectionID) -> Bool {
+        guard id.isAvailable, isShown(id) else { return false }
+        return id != .brightness || defaults.bool(forKey: DefaultsKey.brightnessControlEnabled)
     }
 
     static func isCollapsed(_ id: PanelSectionID) -> Bool {

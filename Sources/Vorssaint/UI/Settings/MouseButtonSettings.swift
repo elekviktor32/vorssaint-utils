@@ -6,7 +6,7 @@ import SwiftUI
 /// Settings > Mouse > Mouse button shortcuts: the switch, one row per mapped
 /// button with its recorded combination, and a capture flow that asks for a
 /// real press instead of making the user guess button numbers. The Spaces and
-/// Mission Control drag (issue #1012) lives at the bottom of the same section,
+/// Mission Control drag (issue #1012) lives at the bottom of the same card,
 /// because it hands a button a job the same way and borrows the same capture.
 struct MouseButtonShortcutsSection: View {
     @ObservedObject private var l10n = L10n.shared
@@ -15,6 +15,7 @@ struct MouseButtonShortcutsSection: View {
     @AppStorage(DefaultsKey.mouseButtonShortcutsEnabled) private var enabled = false
     @AppStorage(DefaultsKey.mouseSpacesGestureEnabled) private var spacesEnabled = false
     @AppStorage(DefaultsKey.mouseSpacesGestureButton) private var spacesButton = 0
+    @AppStorage(DefaultsKey.mouseSpacesGestureFollowsDrag) private var spacesFollowsDrag = false
 
     @State private var mappings = MouseButtonShortcutSupport.decode(
         UserDefaults.standard.dictionary(forKey: DefaultsKey.mouseButtonShortcuts) as? [String: String])
@@ -35,57 +36,78 @@ struct MouseButtonShortcutsSection: View {
     private var text: MouseButtonFeatureStrings { FeatureStrings.mouseButtons(l10n.language) }
 
     var body: some View {
-        Section(text.pageTitle) {
-            Toggle(text.enableLabel, isOn: $enabled)
-                .onChange(of: enabled) { _, on in
-                    if !on { stopCapture() }
-                    MouseButtonShortcutService.shared.syncWithPreferences()
-                    if on, !permissions.accessibility {
-                        permissions.requestAccessibility()
+        SettingsCard(title: text.pageTitle) {
+            SettingsRow(symbol: "computermouse.fill", title: text.enableLabel, caption: text.enableCaption) {
+                Toggle(text.enableLabel, isOn: $enabled)
+                    .labelsHidden()
+                    .onChange(of: enabled) { _, on in
+                        if !on { stopCapture() }
+                        MouseButtonShortcutService.shared.syncWithPreferences()
+                        if on, !permissions.accessibility {
+                            permissions.requestAccessibility()
+                        }
                     }
-                }
-            Text(text.enableCaption)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if enabled {
-                if mappings.isEmpty, pendingButton == nil {
-                    Text(text.emptyCaption)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(MouseButtonShortcutSupport.sortedButtons(mappings), id: \.self) { button in
-                    mappingRow(button, shortcut: mappings[button])
-                }
-                if let pendingButton {
-                    mappingRow(pendingButton, shortcut: nil)
-                }
-                captureRow
             }
-            Toggle(text.spacesEnableLabel, isOn: $spacesEnabled)
-                .onChange(of: spacesEnabled) { _, on in
-                    if !on {
-                        stopSpacesCapture()
-                        // The row is gone while this switch is off, so a kept
-                        // binding could only act invisibly: it would refuse
-                        // the button to shortcut capture, then come back dead
-                        // under a shortcut recorded meanwhile.
-                        spacesButton = 0
+            if enabled {
+                VStack(alignment: .leading, spacing: 10) {
+                    if mappings.isEmpty, pendingButton == nil {
+                        Text(text.emptyCaption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    MouseButtonShortcutService.shared.syncWithPreferences()
-                    if on, !permissions.accessibility {
-                        permissions.requestAccessibility()
+                    ForEach(MouseButtonShortcutSupport.sortedButtons(mappings), id: \.self) { button in
+                        mappingRow(button, shortcut: mappings[button])
                     }
+                    if let pendingButton {
+                        mappingRow(pendingButton, shortcut: nil)
+                    }
+                    captureRow
                 }
-            Text(text.spacesEnableCaption)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .padding(.leading, settingsRowTextInset)
+            }
+            Divider()
+            SettingsRow(symbol: "rectangle.3.group", title: text.spacesEnableLabel,
+                        caption: text.spacesEnableCaption) {
+                Toggle(text.spacesEnableLabel, isOn: $spacesEnabled)
+                    .labelsHidden()
+                    .onChange(of: spacesEnabled) { _, on in
+                        if !on {
+                            stopSpacesCapture()
+                            // The row is gone while this switch is off, so a kept
+                            // binding could only act invisibly: it would refuse
+                            // the button to shortcut capture, then come back dead
+                            // under a shortcut recorded meanwhile.
+                            spacesButton = 0
+                        }
+                        MouseButtonShortcutService.shared.syncWithPreferences()
+                        if on, !permissions.accessibility {
+                            permissions.requestAccessibility()
+                        }
+                    }
+            }
             if spacesEnabled {
-                spacesRow
-                if !spacesCommandsAreReachable {
-                    Text(text.spacesShortcutsOffNote)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 10) {
+                    spacesRow
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(text.spacesFollowsDragLabel)
+                            Text(text.spacesFollowsDragCaption)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 12)
+                        Toggle(text.spacesFollowsDragLabel, isOn: $spacesFollowsDrag)
+                            .labelsHidden()
+                    }
+                    if !spacesCommandsAreReachable {
+                        Text(text.spacesShortcutsOffNote)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(.leading, settingsRowTextInset)
             }
             // One exception list for one tap: the service checks these apps
             // before both the shortcut and the drag branch, so the list must
@@ -94,7 +116,7 @@ struct MouseButtonShortcutsSection: View {
                 MouseExceptionsList(scope: .buttonShortcuts)
             }
         }
-        .settingsSectionAnchor(.mouseButtonShortcuts)
+        .settingsSectionAnchor(.mouseButtonShortcuts, cornerRadius: 16)
         .onDisappear {
             stopCapture()
             stopSpacesCapture()

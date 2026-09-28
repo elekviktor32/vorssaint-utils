@@ -11,7 +11,7 @@ import Foundation
 /// origin, like a zoom's focus, so it stays on the same pixels whatever
 /// shape, quality or zoom the finished video ends up with. Unlike a caption
 /// it never fades: a blur that eases in shows what it is hiding.
-struct RecorderBlurRegion: Codable, Equatable, Identifiable {
+struct RecorderBlurRegion: Codable, Equatable, Identifiable, RecorderTimelineBlock {
     var id: UUID
     /// In the recording's own time, like everything else on the timeline.
     var start: Double
@@ -20,11 +20,14 @@ struct RecorderBlurRegion: Codable, Equatable, Identifiable {
     var y: Double
     var width: Double
     var height: Double
+    /// How hard the area is hidden, on the screenshot editor's 1...5 scale.
+    var strength: Int
 
     init(id: UUID = UUID(),
          start: Double,
          end: Double,
-         rect: CGRect = defaultRect) {
+         rect: CGRect = defaultRect,
+         strength: Int = ScreenshotSupport.BlurStrength.defaultLevel) {
         self.id = id
         self.start = start
         self.end = end
@@ -32,6 +35,26 @@ struct RecorderBlurRegion: Codable, Equatable, Identifiable {
         y = Double(rect.origin.y)
         width = Double(rect.width)
         height = Double(rect.height)
+        self.strength = strength
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, start, end, x, y, width, height, strength
+    }
+
+    /// Blurs saved before the strength existed open at the strength they
+    /// were drawn with.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        start = try container.decode(Double.self, forKey: .start)
+        end = try container.decode(Double.self, forKey: .end)
+        x = try container.decode(Double.self, forKey: .x)
+        y = try container.decode(Double.self, forKey: .y)
+        width = try container.decode(Double.self, forKey: .width)
+        height = try container.decode(Double.self, forKey: .height)
+        strength = try container.decodeIfPresent(Int.self, forKey: .strength)
+            ?? ScreenshotSupport.BlurStrength.defaultLevel
     }
 
     var duration: Double { max(0, end - start) }
@@ -90,6 +113,7 @@ struct RecorderBlurRegion: Codable, Equatable, Identifiable {
         copy.y = Double(rect.origin.y)
         copy.width = Double(rect.width)
         copy.height = Double(rect.height)
+        copy.strength = ScreenshotSupport.BlurStrength.sanitized(strength)
         return copy
     }
 

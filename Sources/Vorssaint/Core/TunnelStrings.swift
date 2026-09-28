@@ -9,6 +9,7 @@ import Foundation
 struct TunnelFeatureStrings {
     let pageTitle: String
     let hubDescription: String
+    let panelDescription: String
     let summaryIdle: String
     let summaryConnecting: String
     let summaryExternal: String
@@ -49,7 +50,7 @@ extension FeatureStrings {
         // reads worse than an untranslated one. The switch stays exhaustive so
         // adding a language later is a compiler-guided edit.
         switch language {
-        case .enUS, .ptBR, .tr, .ru, .es, .de, .fr, .it, .ja, .ko, .zhHans, .zhTW, .zhHK:
+        case .enUS, .ptBR, .tr, .ru, .es, .de, .fr, .it, .ja, .ko, .zhHans, .zhTW, .zhHK, .sk, .uk:
             return .enUS
         }
     }
@@ -59,6 +60,7 @@ extension TunnelFeatureStrings {
     static let enUS = TunnelFeatureStrings(
         pageTitle: "SSH tunnels",
         hubDescription: "Opens and watches SSH port forwards, reconnecting them after sleep or a network change.",
+        panelDescription: "Your SSH tunnels with their live state, one click to open or close each.",
         summaryIdle: "No tunnel is up",
         summaryConnecting: "Connecting…",
         summaryExternal: "An outside tunnel is holding the ports",

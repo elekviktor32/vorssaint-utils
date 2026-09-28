@@ -31,6 +31,7 @@ extension FeatureStrings {
         case .tr: return .tr
         case .ru: return .ru
         case .es: return .es
+        case .sk: return .sk
         case .de: return .de
         case .fr: return .fr
         case .it: return .it
@@ -39,6 +40,7 @@ extension FeatureStrings {
         case .zhHans: return .zhHans
         case .zhTW: return .zhTW
         case .zhHK: return .zhHK
+        case .uk: return .uk
         }
     }
 }
@@ -55,6 +57,18 @@ extension PermissionGuideStrings {
         staleHint: "목록에서 이미 켜져 있나요? 그 항목은 이전 앱 사본의 것입니다. 다시 시작하여 교체하세요.",
         startOver: "다시 시작",
         relaunch: "적용하려면 다시 실행"
+    )
+    static let uk = PermissionGuideStrings(
+        title: "Залишився один крок",
+        stepOpen: "macOS відкрила Системні параметри на потрібному списку.",
+        stepToggle: "Увімкніть Vorssaint у тому списку.",
+        stepReturn: "Поверніться. Ця картка помітить сама.",
+        waiting: "Очікування дозволу…",
+        granted: "Дозвіл надано!",
+        closeHelp: "Закрити",
+        staleHint: "Вже є в тому списку? Той запис належить попередній копії програми. Почніть заново, щоб замінити її.",
+        startOver: "Почати заново",
+        relaunch: "Перезапустити для застосування"
     )
 }
 
@@ -87,8 +101,8 @@ extension PermissionGuideStrings {
 
     static let tr = PermissionGuideStrings(
         title: "Bir adım kaldı",
-        stepOpen: "macOS, Sistem Ayarları'nı doğru listede açtı.",
-        stepToggle: "O listede Vorssaint'i açın.",
+        stepOpen: "macOS, Sistem Ayarları’nı doğru listede açtı.",
+        stepToggle: "O listede Vorssaint’i açın.",
         stepReturn: "Buraya dönün. Bu kart kendiliğinden fark eder.",
         waiting: "İzin bekleniyor…",
         granted: "İzin verildi!",
@@ -124,6 +138,19 @@ extension PermissionGuideStrings {
         relaunch: "Reabrir para aplicar"
     )
 
+    static let sk = PermissionGuideStrings(
+        title: "Ostáva jeden krok",
+        stepOpen: "macOS otvoril Systémové nastavenia na správnom zozname.",
+        stepToggle: "V tomto zozname zapnite Vorssaint.",
+        stepReturn: "Vráťte sa sem. Táto karta si to všimne sama.",
+        waiting: "Čaká sa na povolenie…",
+        granted: "Povolenie udelené!",
+        closeHelp: "Zavrieť",
+        staleHint: "Je to v zozname už zapnuté? Táto položka patrí staršej kópii aplikácie. Začnite znova, aby ste ju nahradili.",
+        startOver: "Začať znova",
+        relaunch: "Reštartovať na použitie"
+    )
+
     static let de = PermissionGuideStrings(
         title: "Ein Schritt fehlt",
         stepOpen: "macOS hat die Systemeinstellungen mit der richtigen Liste geöffnet.",
@@ -138,27 +165,27 @@ extension PermissionGuideStrings {
     )
 
     static let fr = PermissionGuideStrings(
-        title: "Plus qu'une étape",
+        title: "Plus qu’une étape",
         stepOpen: "macOS a ouvert les Réglages Système sur la bonne liste.",
         stepToggle: "Activez Vorssaint dans cette liste.",
         stepReturn: "Revenez ici. Cette carte le remarque toute seule.",
-        waiting: "En attente de l'autorisation…",
-        granted: "Autorisation accordée !",
+        waiting: "En attente de l’autorisation…",
+        granted: "Autorisation accordée\u{00A0}!",
         closeHelp: "Fermer",
-        staleHint: "Déjà activé dans cette liste ? Cette entrée appartient à une copie précédente de l'app. Recommencez pour la remplacer.",
+        staleHint: "Déjà activé dans cette liste\u{00A0}? Cette entrée appartient à une copie précédente de l’app. Recommencez pour la remplacer.",
         startOver: "Recommencer",
         relaunch: "Relancer pour appliquer"
     )
 
     static let it = PermissionGuideStrings(
         title: "Manca un passo",
-        stepOpen: "macOS ha aperto le Impostazioni di Sistema sull'elenco giusto.",
-        stepToggle: "Attiva Vorssaint in quell'elenco.",
+        stepOpen: "macOS ha aperto le Impostazioni di Sistema sull’elenco giusto.",
+        stepToggle: "Attiva Vorssaint in quell’elenco.",
         stepReturn: "Torna qui. Questa scheda se ne accorge da sola.",
         waiting: "In attesa del permesso…",
         granted: "Permesso concesso!",
         closeHelp: "Chiudi",
-        staleHint: "Già attivo in quell'elenco? Quella voce appartiene a una copia precedente dell'app. Ricomincia per sostituirla.",
+        staleHint: "Già attivo in quell’elenco? Quella voce appartiene a una copia precedente dell’app. Ricomincia per sostituirla.",
         startOver: "Ricomincia",
         relaunch: "Riavvia per applicare"
     )
