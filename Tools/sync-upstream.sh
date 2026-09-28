@@ -7,8 +7,8 @@
 #
 # A successful `git merge` proves nothing here. The feature adds a `.tunnels`
 # case to several exhaustive switches (AppFeature, PanelSectionID, SettingsPage),
-# so an upstream commit that adds a case of its own merges cleanly and then fails
-# to compile. The build is the real gate, and a merge that does not pass it is
+# and TunnelStrings switches over AppLanguage, so an upstream commit that adds a
+# case or a language merges cleanly and then fails to compile. The build is the real gate, and a merge that does not pass it is
 # rolled back rather than left sitting in the working tree.
 #
 #   ./Tools/sync-upstream.sh            merge, build, selftest
@@ -26,12 +26,14 @@ TOUCHPOINTS=(
     Sources/Vorssaint/Core/Defaults.swift
     Sources/Vorssaint/Core/FeaturePresets.swift
     Sources/Vorssaint/App/FeatureRuntime.swift
+    Sources/Vorssaint/App/AppDelegate.swift
     Sources/Vorssaint/UI/MenuPanel/PanelLayout.swift
     Sources/Vorssaint/UI/MenuPanel/MenuPanelView.swift
     Sources/Vorssaint/UI/Settings/FeatureVisibilitySupport.swift
     Sources/Vorssaint/UI/Settings/SettingsView.swift
     Sources/Vorssaint/UI/Settings/SettingsDirectory.swift
     Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift
+    Sources/Vorssaint/UI/Settings/PanelLayoutEditor.swift
     Sources/Vorssaint/Support/SelfTest.swift
     Sources/Vorssaint/Core/AppInfo.swift
     Sources/Vorssaint/Services/Update/UpdateService.swift
@@ -80,7 +82,8 @@ build_gate() {
         echo >&2
         echo "If upstream added a case to AppFeature, PanelSectionID or SettingsPage," >&2
         echo "the errors above name every switch missing a '.tunnels' branch — add them" >&2
-        echo "and re-run with --verify." >&2
+        echo "and re-run with --verify. A new AppLanguage goes into the English-only" >&2
+        echo "case list in Core/TunnelStrings.swift." >&2
         [[ -n "$undo" ]] && echo "$undo" >&2
         rm -f "$log"
         return 1
